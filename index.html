@@ -534,14 +534,14 @@ function pLogin(){
       ${up?fld('l-mdp2','Confirmer le mot de passe',`<input id="l-mdp2" type="password" autocomplete="new-password" required>`):''}
       <div class="formerr" id="l-err" role="alert"></div>
       <button class="btn primary" id="l-go" type="submit" style="justify-content:center">${up?'Créer mon compte':'Se connecter'}</button>
-      <button class="linkbtn" data-a="auth-toggle" type="button">${up?'J’ai déjà un compte':'Pas encore de compte ? En créer un'}</button>
+      <p class="note" style="margin:0;text-align:center">Pas de compte ? Demandez-le à votre administrateur.</p>
     </div></form>
     <button class="btn ghost" data-a="demo" type="button" style="align-self:center">Voir l’outil avec des données d’exemple</button>
   </div>`;
 }
 function pAttente(){
   return `<div class="auth"><div class="panel"><div class="empty"><div class="tape" aria-hidden="true"></div>
-    <h3>Compte en attente</h3><p>Bonjour ${esc(S.me||'')}. Votre compte est créé. Un administrateur doit maintenant vous attribuer un profil (Saisie ou Lecture) pour que vous accédiez aux données.</p>
+    <h3>Accès suspendu</h3><p>Bonjour ${esc(S.me||'')}. Votre compte n’a pas accès aux données pour le moment. Contactez votre administrateur.</p>
     <div class="row"><button class="btn primary" data-a="recheck" type="button">Vérifier à nouveau</button><button class="btn" data-a="logout" type="button">Se déconnecter</button></div></div></div></div>`;
 }
 function pSetup(){
@@ -549,7 +549,8 @@ function pSetup(){
     <div class="panel"><div class="body"><ol class="steps">
       <li>Créez un projet gratuit sur <b>supabase.com</b>.</li>
       <li>Dans <b>SQL Editor</b>, exécutez le fichier <code>supabase.sql</code> fourni.</li>
-      <li>Dans <b>Authentication › Sign In / Providers › Email</b>, désactivez « Confirm email ».</li>
+      <li>Dans <b>SQL Editor</b>, exécutez aussi <code>admin_comptes.sql</code>.</li>
+      <li>Dans <b>Authentication › Sign In / Providers</b>, désactivez « Confirm email » puis « Allow new users to sign up » (après avoir créé le premier compte admin).</li>
       <li>Dans <b>Project Settings › API Keys</b>, copiez l’URL du projet et la clé <i>Publishable</i> dans <code>config.js</code>.</li>
       <li>Publiez les fichiers sur GitHub Pages (voir le guide d’installation).</li>
     </ol>${!window.supabase?'<p class="neg" style="margin:0">La bibliothèque Supabase n’a pas pu être chargée : vérifiez la connexion Internet.</p>':''}</div></div>
@@ -601,10 +602,42 @@ async function openUsers(){
       <td><select data-role="${esc(p.id)}" style="padding:5px 8px;border:1px solid var(--line-2);border-radius:4px;background:var(--surface)" aria-label="Profil de ${esc(p.identifiant)}">${[['admin','Admin'],['saisie','Saisie'],['lecture','Lecture'],['attente','Bloqué / en attente']].map(([k,l])=>`<option value="${k}" ${p.role===k?'selected':''}>${l}</option>`).join('')}</select></td>
       <td class="num">${new Date(p.cree_le).toLocaleDateString('fr-FR')}</td></tr>`).join('')}
     </tbody></table></div>
-    <p class="note">Chaque personne crée son compte depuis l’écran de connexion (« Pas encore de compte ? »). Il arrive ici en « Bloqué / en attente » : choisissez son profil pour lui ouvrir l’accès. Pour retirer un accès, repassez-le en « Bloqué ».</p>
+    <p class="note">Pour retirer un accès sans supprimer l’historique, passez la personne en « Bloqué ».</p>
+    <div class="sect">Créer un compte</div>
+    <form id="nc-form" class="fg" autocomplete="off">
+      ${fld('nc-ident','Identifiant',`<input id="nc-ident" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="ex. karim">`,'','3 à 30 lettres, chiffres, point ou tiret.')}
+      ${fld('nc-nom','Nom affiché',`<input id="nc-nom" autocomplete="off" placeholder="ex. Karim Alaoui">`)}
+      ${fld('nc-mdp','Mot de passe provisoire',`<input id="nc-mdp" type="text" autocomplete="off">`,'','8 caractères minimum. Communiquez-le à la personne, qui pourra le changer.')}
+      ${fld('nc-role','Profil',selx('nc-role',[{v:'saisie',l:'Saisie'},{v:'lecture',l:'Lecture'},{v:'admin',l:'Admin'}],'saisie',false))}
+      <div class="full" style="display:flex;justify-content:flex-end"><button class="btn primary" type="submit">Créer le compte</button></div>
+    </form>
+    <div class="sect">Réinitialiser un mot de passe</div>
+    <div class="fg">
+      ${fld('rp-user','Utilisateur',selx('rp-user',P.filter(p=>p.id!==S.uid).map(p=>({v:p.id,l:p.identifiant+(p.nom&&p.nom!==p.identifiant?' · '+p.nom:'')})),'',true))}
+      ${fld('rp-mdp','Nouveau mot de passe provisoire',`<input id="rp-mdp" type="text" autocomplete="off">`)}
+      <div class="full" style="display:flex;justify-content:flex-end"><button class="btn" data-a="reset-pwd" type="button">Réinitialiser</button></div>
+    </div>
     <div class="sect">Mon mot de passe</div>
     <div class="fg">${fld('u-mdp','Nouveau mot de passe',`<input id="u-mdp" type="password" autocomplete="new-password">`)}<div class="f" style="justify-content:flex-end"><button class="btn" data-a="pwd" type="button">Changer mon mot de passe</button></div></div>
   </div><footer><button class="btn" data-a="close" type="button">Fermer</button></footer>`, true);
+}
+
+async function createAccount(){
+  clearErrs(); const v=id=>($('#'+id)||{}).value||'';
+  const ident=v('nc-ident').trim().toLowerCase(), nom=v('nc-nom').trim(), mdp=v('nc-mdp'), role=v('nc-role');
+  let bad=false;
+  if(!/^[a-z0-9._-]{3,30}$/.test(ident)){ setErr('nc-ident','Identifiant invalide : sans espace ni accent.'); bad=true; }
+  if(mdp.length<8){ setErr('nc-mdp','8 caractères minimum.'); bad=true; }
+  if(bad) return;
+  try{ await q(SB.rpc('admin_creer_compte',{p_ident:ident,p_nom:nom,p_mdp:mdp,p_role:role,p_domaine:DOMAINE})); toast('Compte « '+ident+' » créé. Communiquez-lui son mot de passe provisoire.'); await openUsers(); }
+  catch(e){ toast(e.message,'err'); }
+}
+async function resetPassword(){
+  clearErrs(); const id=($('#rp-user')||{}).value, mdp=($('#rp-mdp')||{}).value||'';
+  if(!id){ setErr('rp-user','Choisissez un utilisateur.'); return; }
+  if(mdp.length<8){ setErr('rp-mdp','8 caractères minimum.'); return; }
+  try{ await q(SB.rpc('admin_changer_mdp',{p_id:id,p_mdp:mdp})); $('#rp-mdp').value=''; toast('Mot de passe réinitialisé. Communiquez-le à la personne.'); }
+  catch(e){ toast(e.message,'err'); }
 }
 
 /* Tableau de bord */
@@ -1373,6 +1406,7 @@ document.addEventListener('click', async e=>{
   if(a==='demo'){ S.demo=demoData(); return render(); }
   if(a==='auth-toggle'){ S.signup=!S.signup; return render(); }
   if(a==='logout') return logout();
+  if(a==='reset-pwd') return resetPassword();
   if(a==='recheck'){ const {data}=await SB.auth.getSession(); return data.session?startSession(data.session):logout(); }
   if(a==='pwd'){ const v=$('#u-mdp').value; if(v.length<8) return toast('8 caractères minimum.','err'); const {error}=await SB.auth.updateUser({password:v}); if(error) return toast(sbErr(error),'err'); $('#u-mdp').value=''; return toast('Mot de passe modifié.'); }
   if(a==='new-art') return openArticle(null);
@@ -1408,7 +1442,7 @@ document.addEventListener('click', async e=>{
   if(a==='imp-go') return runImport();
   if(a==='tpl') return doTemplate();
 });
-document.addEventListener('submit', e=>{ if(e.target.id==='auth-form'){ e.preventDefault(); doAuth(); } });
+document.addEventListener('submit', e=>{ if(e.target.id==='auth-form'){ e.preventDefault(); doAuth(); } else if(e.target.id==='nc-form'){ e.preventDefault(); createAccount(); } });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'&&$('#modal-root').innerHTML) closeModal();
   if((e.key==='Enter'||e.key===' ')&&e.target.id==='drop'){ e.preventDefault(); $('#imp-file').click(); } });
 document.addEventListener('input', e=>{
