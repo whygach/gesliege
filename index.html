@@ -1,0 +1,1459 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GesLiège</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2215%22 fill=%22%23C4833E%22/%3E%3Ccircle cx=%2211%22 cy=%2212%22 r=%222%22 fill=%22%238C5B30%22/%3E%3Ccircle cx=%2220%22 cy=%2210%22 r=%221.5%22 fill=%22%238C5B30%22/%3E%3Ccircle cx=%2218%22 cy=%2221%22 r=%222.4%22 fill=%22%238C5B30%22/%3E%3Ccircle cx=%229%22 cy=%2221%22 r=%221.3%22 fill=%22%238C5B30%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.100.0/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<style>
+/* Layout : bandeau écorce (brun liège, texture de granulés) au-dessus d'une aire de travail pierre claire ; l'ocre du liège porte les actions, le vert du chêne-liège l'état sain. */
+:root{
+  --bg:#E8E6E1; --surface:#FBFAF8; --surface-2:#F2F0EC; --line:#DAD5CD; --line-2:#C5BEB3;
+  --ink:#271D16; --ink-2:#5C5047; --ink-3:#877A6F;
+  --band:#2E2016; --band-2:#432F21; --band-ink:#F3ECE3; --band-ink-2:#BCA690;
+  --signal:#C4833E; --signal-ink:#1F150E; --grain:#8C5B30; --steel:#3E6B4E;
+  --ok:#3B7350; --warn:#A8620F; --crit:#B23A2E;
+  --c-mp:#8A5A33; --c-sf:#C4833E; --c-gr:#A08A5C; --c-pf:#3E6B4E; --c-mc:#5D6B7A; --c-im:#6E4F7A;
+  --f-display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#17120E; --surface:#201913; --surface-2:#281F18; --line:#3A2E24; --line-2:#4C3D30;
+  --ink:#EEE6DC; --ink-2:#BBAD9F; --ink-3:#8E8073;
+  --band:#0F0B08; --band-2:#2A1F16; --band-ink:#EEE6DC; --band-ink-2:#A8927C;
+  --signal:#DDA060; --signal-ink:#1A120B; --grain:#6E4626; --steel:#7FB08E;
+  --ok:#6FBF8A; --warn:#E3A04F; --crit:#EE7466;
+  --c-mp:#C99467; --c-sf:#DDA060; --c-gr:#CDB98C; --c-pf:#7FB08E; --c-mc:#97A6B5; --c-im:#B596C2;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17120E; --surface:#201913; --surface-2:#281F18; --line:#3A2E24; --line-2:#4C3D30;
+  --ink:#EEE6DC; --ink-2:#BBAD9F; --ink-3:#8E8073;
+  --band:#0F0B08; --band-2:#2A1F16; --band-ink:#EEE6DC; --band-ink-2:#A8927C;
+  --signal:#DDA060; --signal-ink:#1A120B; --grain:#6E4626; --steel:#7FB08E;
+  --ok:#6FBF8A; --warn:#E3A04F; --crit:#EE7466;
+  --c-mp:#C99467; --c-sf:#DDA060; --c-gr:#CDB98C; --c-pf:#7FB08E; --c-mc:#97A6B5; --c-im:#B596C2;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.auth{max-width:420px;margin:24px auto 0;display:flex;flex-direction:column;gap:14px}
+.auth .panel .body{display:flex;flex-direction:column;gap:12px}
+.auth h2{font-family:var(--f-display);font-weight:700;font-size:28px;letter-spacing:-.015em;margin:0}
+.auth p{margin:0;color:var(--ink-2)}
+.linkbtn{background:none;border:0;color:var(--ink-2);text-decoration:underline;cursor:pointer;padding:0;font-size:13px}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;color:var(--ink-2)}
+.steps code{font-family:var(--f-mono);font-size:12.5px;background:var(--surface-2);padding:1px 5px;border-radius:3px}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--band)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+.num,td.n,th.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* Bandeau */
+header.band{background:radial-gradient(circle at 20% 30%,color-mix(in srgb,var(--grain) 55%,transparent) 0 1.2px,transparent 1.6px) 0 0/9px 11px,radial-gradient(circle at 70% 60%,color-mix(in srgb,var(--grain) 40%,transparent) 0 1px,transparent 1.5px) 0 0/13px 7px,var(--band);color:var(--band-ink);position:sticky;top:env(safe-area-inset-top,0px);z-index:20}
+.band .top{display:flex;align-items:center;gap:12px;padding-block:12px 6px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.mark{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 30% 35%,var(--grain) 0 2px,transparent 2.5px),radial-gradient(circle at 65% 30%,var(--grain) 0 1.5px,transparent 2px),radial-gradient(circle at 55% 68%,var(--grain) 0 2.2px,transparent 2.7px),radial-gradient(circle at 25% 70%,var(--grain) 0 1.2px,transparent 1.7px),radial-gradient(circle at 78% 55%,var(--grain) 0 1.3px,transparent 1.8px),var(--signal);box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--band) 35%,transparent)}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:25px;letter-spacing:-.01em;margin:0;line-height:1}
+.brand small{display:block;font-size:11px;color:var(--band-ink-2);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+.mode{font-size:12px;padding:3px 9px;border-radius:99px;border:1px solid var(--band-2);color:var(--band-ink-2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.mode i{width:7px;height:7px;border-radius:50%;background:var(--band-ink-2)}
+.mode.live i{background:var(--ok)} .mode.demo i,.mode.local i{background:var(--signal)}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{background:none;border:0;color:var(--band-ink-2);padding:10px 14px 12px;cursor:pointer;font-family:var(--f-display);font-weight:600;font-size:15.5px;white-space:nowrap;border-bottom:3px solid transparent}
+nav.tabs button:hover{color:var(--band-ink)}
+nav.tabs button[aria-current="page"]{color:var(--band-ink);border-bottom-color:var(--signal)}
+.btn-band{background:var(--band-2);border:1px solid var(--band-2);color:var(--band-ink);border-radius:var(--r);padding:6px 12px;cursor:pointer;font-size:13px;white-space:nowrap}
+.btn-band:hover{border-color:var(--band-ink-2)}
+
+.banner{background:var(--signal);color:var(--signal-ink);font-size:13px}
+.banner .wrap{display:flex;gap:12px;align-items:center;padding-block:8px;flex-wrap:wrap}
+.banner button{background:var(--signal-ink);color:var(--signal);border:0;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px}
+
+main{padding-block:22px 48px}
+.page-head{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.page-head h2{font-family:var(--f-display);font-weight:700;font-size:31px;letter-spacing:-.015em;margin:0;line-height:1.05;text-wrap:balance;margin-right:auto}
+.page-head p{margin:4px 0 0;color:var(--ink-2);font-size:13px;max-width:65ch}
+.grow{flex:1;min-width:0}
+
+/* Boutons */
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:var(--r);padding:8px 14px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font-size:13.5px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--ink-3)}
+.btn.primary{background:var(--signal);border-color:var(--signal);color:var(--signal-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.danger{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 40%,var(--line))}
+.btn.sm{padding:4px 9px;font-size:12.5px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:none;border-color:transparent;color:var(--ink-2)}
+.btn.ghost:hover{color:var(--ink);border-color:var(--line)}
+
+/* Tuiles */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.kpi .l{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.kpi .v{font-family:var(--f-mono);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kpi .v small{font-size:13px;color:var(--ink-3);font-family:var(--f-body)}
+.kpi .s{font-size:12.5px;color:var(--ink-2)}
+.kpi.warn .v{color:var(--warn)} .kpi.crit .v{color:var(--crit)}
+
+.cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
+.panel>h3{font-family:var(--f-display);font-weight:600;font-size:16.5px;margin:0;padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.panel>h3 .aside{margin-left:auto;font-family:var(--f-body);font-size:12px;letter-spacing:0;text-transform:none;color:var(--ink-3);font-weight:400}
+.panel .body{padding:14px 16px}
+.panel.alerts>h3{background:radial-gradient(circle at 30% 40%,var(--grain) 0 1.6px,transparent 2.1px) 0 0/10px 9px,radial-gradient(circle at 70% 70%,color-mix(in srgb,var(--band) 50%,transparent) 0 1.4px,transparent 1.9px) 0 0/7px 12px,var(--signal);border-radius:var(--r) var(--r) 0 0;padding:0;border-bottom:0}
+.panel.alerts>h3 span{background:var(--band);color:var(--band-ink);padding:6px 10px;margin:8px;border-radius:3px}
+.stack{display:flex;flex-direction:column;gap:16px}
+
+/* Barres par compte */
+.acc{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.acc:last-child{border-bottom:0}
+.acc .code{font-family:var(--f-mono);font-size:13px;color:var(--ink-2)}
+.acc .lab{font-size:13.5px}
+.acc .val{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:13.5px;text-align:right}
+.acc .bar{grid-column:2/4;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.acc .bar i{display:block;height:100%;border-radius:3px}
+.acc.total{border-top:2px solid var(--ink);border-bottom:0;margin-top:2px}
+.acc.total .lab{font-weight:600}
+
+.alert-row{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.alert-row:last-child{border-bottom:0}
+.alert-row .grow b{font-weight:500}
+.alert-row .grow small{display:block;color:var(--ink-3);font-size:12px}
+
+/* Pastilles */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap;letter-spacing:.02em}
+.pill.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.pill.crit{background:color-mix(in srgb,var(--crit) 15%,transparent);color:var(--crit)}
+.pill.neutral{background:var(--surface-2);color:var(--ink-2)}
+.pill.trf{background:color-mix(in srgb,var(--signal) 18%,transparent);color:color-mix(in srgb,var(--signal) 65%,var(--ink))}
+.cat{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);white-space:nowrap}
+.cat i{width:9px;height:9px;border-radius:2px;flex:none}
+.cat b{font-family:var(--f-mono);font-weight:500;color:var(--ink)}
+
+/* Barre d'outils */
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line-2);background:var(--surface);border-radius:99px;padding:5px 12px;font-size:13px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip .cnt{font-family:var(--f-mono);font-size:11.5px;opacity:.7}
+.search{position:relative;flex:1;min-width:180px;max-width:340px;margin-left:auto}
+.search input{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--surface)}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink-3)}
+
+/* Tables */
+.tw{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.panel .tw{border:0;border-radius:0}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;white-space:nowrap}
+td .sub{display:block;font-size:12px;color:var(--ink-3)}
+td.code{font-family:var(--f-mono);font-size:13px;white-space:nowrap}
+tbody tr:hover td{background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
+tr.clickable{cursor:pointer}
+.acts{display:flex;gap:4px;justify-content:flex-end}
+.qty-low{color:var(--warn)} .qty-zero{color:var(--crit)}
+tfoot td{font-weight:600;border-top:2px solid var(--ink);background:var(--surface-2)}
+.neg{color:var(--crit)} .pos{color:var(--ok)}
+.muted{color:var(--ink-3)}
+.note{font-size:12.5px;color:var(--ink-3);margin-top:8px}
+
+/* États vides */
+.empty{padding:40px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px}
+.empty h3{font-family:var(--f-display);font-weight:700;font-size:25px;letter-spacing:-.01em;margin:0}
+.empty p{color:var(--ink-2);margin:0;max-width:52ch}
+.empty .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.empty .tape{width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 30% 35%,var(--grain) 0 3px,transparent 3.6px),radial-gradient(circle at 66% 28%,var(--grain) 0 2px,transparent 2.6px),radial-gradient(circle at 55% 70%,var(--grain) 0 3.2px,transparent 3.8px),radial-gradient(circle at 24% 72%,var(--grain) 0 1.8px,transparent 2.3px),var(--signal)}
+
+/* Fenêtres */
+.ov{position:fixed;inset:0;background:color-mix(in srgb,#000 55%,transparent);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 24px max(12px,env(safe-area-inset-left,0px));overflow-y:auto}
+.modal{background:var(--surface);border-radius:8px;width:100%;max-width:640px;border-top:4px solid var(--signal);box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.modal.wide{max-width:960px}
+.modal header{display:flex;align-items:flex-start;gap:12px;padding:16px 20px 12px;border-bottom:1px solid var(--line)}
+.modal header h3{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:-.01em;margin:0;line-height:1.1}
+.modal header p{margin:3px 0 0;font-size:13px;color:var(--ink-2)}
+.modal .x{margin-left:auto;background:none;border:0;font-size:22px;line-height:1;cursor:pointer;color:var(--ink-3);padding:2px 6px}
+.modal .mb{padding:16px 20px}
+.modal footer{display:flex;gap:8px;justify-content:flex-end;padding:12px 20px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
+.fg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+.fg .full{grid-column:1/-1}
+.f{display:flex;flex-direction:column;gap:5px;min-width:0}
+.f label{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.f input,.f select,.f textarea{border:1px solid var(--line-2);border-radius:var(--r);padding:8px 10px;background:var(--surface);width:100%;min-width:0}
+.f textarea{min-height:64px;resize:vertical}
+.f .hint{font-size:12px;color:var(--ink-3)}
+.f.err input,.f.err select{border-color:var(--crit)}
+.f.err .hint{color:var(--crit)}
+.calc{background:var(--surface-2);border-radius:var(--r);padding:10px 12px;font-size:13px;display:flex;gap:18px;flex-wrap:wrap;margin-top:12px}
+.calc b{font-family:var(--f-mono);font-weight:500}
+.formerr{color:var(--crit);font-size:13px;margin-top:10px}
+.sect{font-family:var(--f-display);font-weight:600;font-size:15.5px;color:var(--ink-2);margin:18px 0 8px;padding-top:12px;border-top:1px dashed var(--line-2)}
+.dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 16px;font-size:13.5px}
+.dl div{min-width:0}.dl dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600}.dl dd{margin:2px 0 0;overflow-wrap:anywhere}
+.map{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 12px}
+.map .f select{padding:6px 8px;font-size:13px}
+.map .f.hit select{border-color:var(--ok)}
+.drop{border:2px dashed var(--line-2);border-radius:8px;padding:26px;text-align:center;cursor:pointer;color:var(--ink-2)}
+.drop:hover,.drop.over{border-color:var(--signal);background:color-mix(in srgb,var(--signal) 8%,transparent)}
+.inv-in{width:96px;text-align:right;padding:5px 8px;border:1px solid var(--line-2);border-radius:4px;background:var(--surface);font-family:var(--f-mono)}
+
+.toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));z-index:200;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:var(--r);font-size:13.5px;max-width:min(420px,calc(100vw - 32px));box-shadow:0 8px 24px rgba(0,0,0,.25);border-left:4px solid var(--ok)}
+.toast.err{border-left-color:var(--crit)}
+
+.tw table{min-width:620px}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.cols{grid-template-columns:minmax(0,1fr)}.panel.alerts{order:-1}.cols>.stack:last-child{order:-1}.map{grid-template-columns:repeat(2,minmax(0,1fr))}.dl{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.fg{grid-template-columns:minmax(0,1fr)}.map{grid-template-columns:minmax(0,1fr)}.kpi .v{font-size:19px}.page-head h2{font-size:26px}.search{max-width:none;margin-left:0;flex-basis:100%}.brand small{display:none}}
+@media (prefers-reduced-motion:no-preference){.toast{animation:tin .18s ease-out}@keyframes tin{from{transform:translateY(8px);opacity:0}}}
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <div class="top">
+      <div class="brand"><div class="mark" aria-hidden="true"></div><div><h1>GesLiège</h1><small>Liège brut · transformation · immobilisations</small></div></div>
+      <span class="mode" id="mode"><i></i><span>Connexion…</span></span>
+      <button class="btn-band" id="btn-acc" type="button" hidden>Utilisateurs</button>
+      <button class="btn-band" id="btn-export" type="button" hidden>Exporter Excel</button>
+      <button class="btn-band" id="btn-out" type="button" hidden>Déconnexion</button>
+    </div>
+    <nav class="tabs" id="tabs" aria-label="Sections">
+      <button type="button" data-p="dash">Tableau de bord</button>
+      <button type="button" data-p="art">Articles</button>
+      <button type="button" data-p="mvt">Mouvements</button>
+      <button type="button" data-p="trf">Transformation</button>
+      <button type="button" data-p="inv">Inventaire</button>
+      <button type="button" data-p="imm">Immobilisations</button>
+      <button type="button" data-p="imp">Import</button>
+    </nav>
+  </div>
+</header>
+<div class="banner" id="banner" hidden><div class="wrap"><span id="banner-t"></span><button type="button" id="banner-b" hidden></button></div></div>
+<main class="wrap" id="page"></main>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script>
+"use strict";
+/* ───────────── Référentiels ───────────── */
+const CATS = {
+  mp:{label:'Liège brut (lots récoltés)', short:'Liège brut', compte:'3121', color:'var(--c-mp)'},
+  sf:{label:'Liège bouilli et classé (semi-ouvré)', short:'Bouilli & classé', compte:'3141', color:'var(--c-sf)'},
+  gr:{label:'Granulés, poudre et déchets', short:'Granulés & déchets', compte:'3145', color:'var(--c-gr)'},
+  pf:{label:'Produits finis (bouchons, aggloméré, expansé)', short:'Produits finis', compte:'3151', color:'var(--c-pf)'},
+  mc:{label:'Fournitures et consommables', short:'Fournitures', compte:'3122', color:'var(--c-mc)'}
+};
+const CAT_KEYS = Object.keys(CATS);
+const UNITES = ['kg','qx','t','stère','mille','u','m²','plaque','balle','big-bag','sac','L','carton','palette','rouleau','lot'];
+const KG = {kg:1, qx:100, t:1000};
+const FORETS = ['Maâmora','Larache','Gharb','Bab Azhar','Benslimane','Chefchaouen','Ouezzane','Taza','Autre'];
+const CALIBRES = ['< 9 lignes','9-11 lignes','11-13 lignes','13-15 lignes','15-18 lignes','> 18 lignes','Non calibré'];
+const QUALITES = ['1er choix','2e choix','3e choix','4e choix','5e choix','6e choix','Rebut'];
+const IMMO_TYPES = [
+  {k:'terrain',label:'Terrains',compte:'2311',taux:0},
+  {k:'constr',label:'Constructions (hangars, aires de séchage)',compte:'2321',taux:4},
+  {k:'mat',label:'Matériel et outillage (cuves, tubeuses, broyeurs)',compte:'2332',taux:10},
+  {k:'transp',label:'Matériel de transport',compte:'2340',taux:20},
+  {k:'mob',label:'Mobilier de bureau',compte:'2351',taux:10},
+  {k:'matbur',label:'Matériel de bureau',compte:'2352',taux:10},
+  {k:'info',label:'Matériel informatique',compte:'2355',taux:20},
+  {k:'agen',label:'Agencements et aménagements divers',compte:'2356',taux:10},
+  {k:'autre',label:'Autres immobilisations corporelles',compte:'2380',taux:10}
+];
+const IMMO_BY = Object.fromEntries(IMMO_TYPES.map(t=>[t.k,t]));
+const ETATS = ['En service','En réparation','Hors service'];
+const MOTIFS = {
+  entree:['Adjudication / achat','Production','Retour client','Transfert','Autre'],
+  sortie:['Vente export','Vente locale','Consommation production','Échantillons','Perte / déclassement','Transfert','Autre']
+};
+const EXTRA = {
+  mp:[{k:'famille',l:'Type de liège',t:'sel',o:['Reproduction en planches','Reproduction en morceaux','Liège mâle (démasclage)','Liège flambé','Rebuts']},
+      {k:'origine',l:'Forêt d\u2019origine',t:'sel',o:FORETS},{k:'canton',l:'Canton / parcelle'},{k:'campagne',l:'Campagne de récolte',t:'num'},
+      {k:'lot_adj',l:'N° de lot d\u2019adjudication'},{k:'steres',l:'Stères adjugés',t:'num'},{k:'prix_stere',l:'Prix d\u2019adjudication (MAD/stère)',t:'num'},
+      {k:'fournisseur',l:'Vendeur (ANEF, commune, tiers)'}],
+  sf:[{k:'famille',l:'Forme',t:'sel',o:['Planches bouillies classées','Bandes','Rondelles','Balles pressées','Bouilli non classé']},
+      {k:'calibre',l:'Calibre (épaisseur)',t:'sel',o:CALIBRES},{k:'qualite',l:'Qualité',t:'sel',o:QUALITES},
+      {k:'stade',l:'Stade',t:'sel',o:['Repos / séchage','Bouillage','Stabilisation','Classement','Découpe']},{k:'lot_origine',l:'Lot d\u2019origine'}],
+  gr:[{k:'famille',l:'Nature',t:'sel',o:['Granulés','Poudre de liège','Déchets de bouchonnerie','Croûte','Liège expansé en vrac']},
+      {k:'granulo',l:'Granulométrie (mm)'},{k:'densite',l:'Densité (kg/m³)',t:'num'},{k:'lot_origine',l:'Lot d\u2019origine'}],
+  pf:[{k:'famille',l:'Produit',t:'sel',o:['Bouchons naturels','Bouchons colmatés','Bouchons techniques (1+1)','Bouchons agglomérés','Bouchons micro-agglomérés','Bouchons champagne','Bouchons à tête','Plaques et rouleaux aggloméré','Panneaux de liège expansé','Planches classées export','Autre']},
+      {k:'dimensions',l:'Dimensions (ex. 45 × 24 mm)'},{k:'classe',l:'Classe visuelle',t:'sel',o:['Extra','Supérieur','1er','2e','3e','4e','5e']},
+      {k:'prix_vente',l:'Prix de vente HT (MAD / unité)',t:'num'},{k:'lot_origine',l:'Lot d\u2019origine'}],
+  mc:[{k:'famille',l:'Type',t:'sel',o:['Liants et colles PU','Produits de lavage et traitement','Emballages (sacs, big-bags, cartons)','Pièces de rechange','Combustible chaudière','Autre']},
+      {k:'machine',l:'Machine concernée'},{k:'fournisseur',l:'Fournisseur'},{k:'delai',l:'Délai de livraison (jours)',t:'num'}]
+};
+const toKg = (q,u) => KG[u]!=null ? q*KG[u] : null;
+
+/* ───────────── Outils ───────────── */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nfM = new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const nfQ = new Intl.NumberFormat('fr-FR',{maximumFractionDigits:3});
+const nf0 = new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0});
+const mad = n => nfM.format(n||0) + ' MAD';
+const madK = n => Math.abs(n)>=1e6 ? nfM.format(n/1e6).replace(/,00$/,'')+' M MAD' : mad(n);
+const qf = n => nfQ.format(n||0);
+const r2 = n => Math.round((+n||0)*100)/100;
+const r3 = n => Math.round((+n||0)*1000)/1000;
+const r4 = n => Math.round((+n||0)*10000)/10000;
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const todayISO = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const parseISO = s => { if(!s||!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
+const dfr = s => { const d=parseISO(s); return d ? d.toLocaleDateString('fr-FR') : '—'; };
+const daysTo = s => { const d=parseISO(s); if(!d) return null; const t=parseISO(todayISO()); return Math.round((d-t)/86400000); };
+let _seq=0;
+const mid = () => Date.now().toString(36).padStart(9,'0') + (++_seq).toString(36).padStart(3,'0') + Math.random().toString(36).slice(2,7);
+const norm = s => String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+
+/** Lit un nombre au format français ou anglais : « 1 234,50 », « 1.234,5 », « 1234.5 », « 85 MAD ». Renvoie NaN si illisible, null si vide. */
+function parseNum(v){
+  if(v===null||v===undefined) return null;
+  if(typeof v==='number') return isFinite(v)?v:NaN;
+  let s=String(v).trim(); if(s==='') return null;
+  s=s.replace(/[\s  ]/g,'').replace(/(mad|dhs?|dh|€|%)$/i,'');
+  const lc=s.lastIndexOf(','), ld=s.lastIndexOf('.');
+  if(lc>-1&&ld>-1){ if(lc>ld) s=s.replace(/\./g,'').replace(',','.'); else s=s.replace(/,/g,''); }
+  else if(lc>-1){ s=s.replace(',','.'); }
+  if(!/^-?\d*\.?\d+$/.test(s)) return NaN;
+  return parseFloat(s);
+}
+/** Lit une date : objet Date, numéro de série Excel, « 15/03/2026 » ou « 2026-03-15 ». */
+function parseDate(v){
+  if(v===null||v===undefined||v==='') return null;
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(v instanceof Date) return isNaN(v)?'ERR':iso(new Date(v.getTime()+12*3600e3));
+  if(typeof v==='number'){ if(v<1||v>80000) return 'ERR'; const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000); return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); }
+  const s=String(v).trim();
+  let m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
+  if(m){ let y=+m[3]; if(y<100) y+=2000; const d=new Date(y,+m[2]-1,+m[1]); return (d.getMonth()===+m[2]-1)?iso(d):'ERR'; }
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1]+'-'+m[2]+'-'+m[3];
+  return 'ERR';
+}
+
+/* ───────────── État ───────────── */
+const S = {
+  mode:'loading', page:'dash',
+  data:{articles:[], mouvements:[], immos:[], transfos:[]},
+  demo:null,
+  loaded:{articles:false,mouvements:false,immos:false,transfos:false},
+  canWrite:false, role:'lecture', me:'', profils:[], signup:false,
+  f:{cat:'all', q:'', alert:false},
+  j:{type:'all', q:''},
+  inv:{cat:'mp', counts:{}, date:todayISO(), piece:''},
+  names:{}
+};
+const D = () => S.demo || S.data;
+let DB=null, USER=null, DL=null, UID=null;
+const SESSION = 'v'+Math.random().toString(36).slice(2,10);
+
+function etatArticle(a){
+  const out=[]; const q=+a.qte||0, mn=a.qte_min==null||a.qte_min===''?null:+a.qte_min;
+  if(q<=0) out.push({k:'crit',t:'Rupture'});
+  else if(mn!=null && q<=mn) out.push({k:'warn',t:'Sous le seuil'});
+  const dj=daysTo(a.date_exp);
+  if(dj!=null && q>0){ if(dj<0) out.push({k:'crit',t:'Périmé'}); else if(dj<=30) out.push({k:'warn',t:'Péremption '+dj+' j'}); }
+  return out;
+}
+const valeur = a => r2((+a.qte||0)*(+a.cmup||0));
+
+/* Amortissement linéaire, prorata temporis au jour, base 365 j. */
+function cumulAt(im, date){
+  const va=+im.valeur||0, t=(+im.taux||0)/100, st=parseISO(im.date_service||im.date_achat);
+  if(!st||t<=0||!date||date<st) return 0;
+  const days=(date-st)/86400000+1;
+  return Math.min(va, va*t*days/365);
+}
+function amort(im){
+  const now=parseISO(todayISO()); const va=+im.valeur||0;
+  const cum=r2(cumulAt(im,now));
+  const prevEnd=new Date(now.getFullYear()-1,11,31);
+  const dot=r2(cum - cumulAt(im,prevEnd));
+  return {cum, vnc:r2(va-cum), dot};
+}
+function plan(im){
+  const st=parseISO(im.date_service||im.date_achat); const va=+im.valeur||0; const rows=[];
+  if(!st||!(+im.taux>0)) return rows;
+  let y=st.getFullYear(), prev=0;
+  for(let i=0;i<60;i++){
+    const c=cumulAt(im,new Date(y,11,31));
+    rows.push({an:y, dot:r2(c-prev), cum:r2(c), vnc:r2(va-c)});
+    prev=c; if(va-c<0.005) break; y++;
+  }
+  return rows;
+}
+
+/* ───────────── Persistance ───────────── */
+async function retry(fn){
+  for(let i=0;;i++){
+    try{ return await fn(); }
+    catch(e){ if(e&&(e.code==='unavailable'||e.code==='resource_exhausted')&&i<4){ await sleep(350*(i+1)+Math.random()*300); continue; } throw e; }
+  }
+}
+const remote = () => S.mode==='db' && !S.demo;
+/* ───────────── Serveur Supabase ───────────── */
+const CFG = window.GESLIEGE_CONFIG || {};
+const DOMAINE = String(CFG.domaine||'gesliege.app').replace(/^@/,'');
+let SB=null;
+const EMPTY = () => ({articles:[], mouvements:[], immos:[], transfos:[]});
+function sbErr(e){ const m=(e&&e.message)||String(e);
+  if(/row-level security|permission denied|Droits insuffisants/i.test(m)) return 'Droits insuffisants pour cette action.';
+  if(/Failed to fetch|NetworkError|Load failed/i.test(m)) return 'Connexion au serveur impossible. Vérifiez votre accès Internet.';
+  return m; }
+async function q(p){ const {data,error}=await p; if(error) throw new Error(sbErr(error)); return data; }
+const rowsOf = r => (r||[]).map(x=>({...x.data, id:x.id}));
+async function loadTable(t){
+  if(t==='articles'){ S.data.articles=rowsOf(await q(SB.from('articles').select('id,data'))); S.loaded.articles=true; }
+  else if(t==='immos'){ S.data.immos=rowsOf(await q(SB.from('immos').select('id,data'))); S.loaded.immos=true; }
+  else if(t==='mouvements'){ S.data.mouvements=rowsOf(await q(SB.from('mouvements').select('id,data').order('ts',{ascending:false}).limit(1000))); S.loaded.mouvements=true; }
+  else if(t==='transfos'){ S.data.transfos=rowsOf(await q(SB.from('transfos').select('id,data').order('ts',{ascending:false}).limit(300))); S.loaded.transfos=true; }
+  else if(t==='profils'){ S.profils=await q(SB.from('profils').select('*').order('cree_le')); const me=S.profils.find(p=>p.id===S.uid); if(me&&S.mode==='db') applyProfil(me); }
+}
+async function loadAll(){ await Promise.all(['articles','immos','mouvements','transfos','profils'].map(loadTable)); render(); }
+const _rq={};
+function queueReload(t){ clearTimeout(_rq[t]); _rq[t]=setTimeout(async()=>{ try{ await loadTable(t); render(); }catch(e){} },400); }
+function subscribe(){ const ch=SB.channel('gesliege-'+Math.random().toString(36).slice(2,8)); ['articles','immos','mouvements','transfos','profils'].forEach(t=>ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>queueReload(t))); ch.subscribe(); }
+function upsertLocal(list, rec){ const L=D()[list], i=L.findIndex(x=>x.id===rec.id); if(i>=0) L[i]=rec; else L.push(rec); }
+async function hold(fn){ return fn(); }
+
+async function saveArticle(a){
+  a.maj_le=Date.now();
+  if(!remote()){ upsertLocal('articles',a); return; }
+  const {id,...data}=a; const r=await q(SB.from('articles').upsert({id,data}).select('id,data').single());
+  upsertLocal('articles',{...r.data,id:r.id});
+}
+async function deleteArticle(id){
+  if(!remote()){ D().articles=D().articles.filter(x=>x.id!==id); return; }
+  const r=await q(SB.from('articles').delete().eq('id',id).select('id'));
+  if(!r.length) throw new Error('Suppression refusée : réservée aux administrateurs, et le stock doit être nul.');
+  D().articles=D().articles.filter(x=>x.id!==id);
+}
+async function saveImmo(im){
+  im.maj_le=Date.now();
+  if(!remote()){ upsertLocal('immos',im); return; }
+  const {id,...data}=im; const r=await q(SB.from('immos').upsert({id,data}).select('id,data').single());
+  upsertLocal('immos',{...r.data,id:r.id});
+}
+async function deleteImmo(id){
+  if(!remote()){ D().immos=D().immos.filter(x=>x.id!==id); return; }
+  const r=await q(SB.from('immos').delete().eq('id',id).select('id'));
+  if(!r.length) throw new Error('Suppression refusée : réservée aux administrateurs.');
+  D().immos=D().immos.filter(x=>x.id!==id);
+}
+function calcMvt(a, type, qte, pu){
+  const q0=+a.qte||0, c0=+a.cmup||0;
+  if(type==='entree'){
+    const q1=q0+qte; const c1 = q1>0 ? (Math.max(q0,0)*c0 + qte*pu)/(Math.max(q0,0)+qte) : pu;
+    return {delta:qte, q1:r3(q1), c1:r4(c1), pu:r4(pu), val:r2(qte*pu)};
+  }
+  if(type==='sortie'){
+    if(qte>q0+1e-9) throw new Error('Stock insuffisant : '+qf(q0)+' '+(a.unite||'')+' disponibles.');
+    return {delta:-qte, q1:r3(q0-qte), c1:c0, pu:c0, val:r2(-qte*c0)};
+  }
+  const q1=q0+qte; if(q1<-1e-9) throw new Error('Le stock ne peut pas devenir négatif.');
+  return {delta:qte, q1:r3(q1), c1:c0, pu:c0, val:r2(qte*c0)};
+}
+/** Enregistre un mouvement. Sur le serveur, le stock et le CMUP sont recalculés dans une transaction verrouillée. */
+async function addMvt(aid, type, qte, pu, info){
+  if(remote()){
+    const m=await q(SB.rpc('enregistrer_mouvement',{p_aid:aid,p_type:type,p_qte:qte,p_pu:pu||0,p_info:{date:info.date||todayISO(),piece:info.piece||'',motif:info.motif||'',of:info.of||''}}));
+    const a=D().articles.find(x=>x.id===aid); if(a){ a.qte=+m.qte_apres; a.cmup=+m.cmup_apres; }
+    if(!D().mouvements.some(x=>x.id===m.id)) D().mouvements.unshift(m);
+    return m;
+  }
+  const a=D().articles.find(x=>x.id===aid); if(!a) throw new Error('Article introuvable.');
+  const c=calcMvt(a,type,qte,pu);
+  const m={id:mid(), aid, code:a.code, designation:a.designation, cat:a.cat, unite:a.unite||'', type,
+    date:info.date||todayISO(), qte:c.delta, pu:c.pu, valeur:c.val, piece:info.piece||'', motif:info.motif||'',
+    par:UID||'', ts:Date.now(), qte_apres:c.q1, cmup_apres:c.c1, of:info.of||''};
+  D().mouvements.unshift(m); a.qte=c.q1; a.cmup=c.c1; a.maj_le=Date.now(); return m;
+}
+
+/* ───────────── Rendu ───────────── */
+let _raf=0;
+function render(){ if(_raf) return; _raf=requestAnimationFrame(()=>{_raf=0; doRender();}); }
+function doRender(){
+  const ae=document.activeElement, fid=ae&&ae.id&&$('#page').contains(ae)?ae.id:null;
+  const sel=fid&&ae.selectionStart!=null?[ae.selectionStart,ae.selectionEnd]:null;
+  renderChrome();
+  const PG={dash:pDash,art:pArt,mvt:pMvt,trf:pTrf,inv:pInv,imm:pImm,imp:pImp}[S.page]||pDash;
+  const P=S.demo?PG:S.mode==='setup'?pSetup:S.mode==='auth'?pLogin:S.mode==='attente'?pAttente:S.mode==='loading'?(()=>loadingBlock()):PG;
+  const keep={}; document.querySelectorAll('#page input[id^="l-"]').forEach(i=>{ if(i.value) keep[i.id]=i.value; });
+  $('#page').innerHTML=P();
+  Object.entries(keep).forEach(([k,v])=>{ const i=document.getElementById(k); if(i&&!i.value) i.value=v; });
+  if(fid){ const el=document.getElementById(fid); if(el){ el.focus(); if(sel&&el.setSelectionRange) try{el.setSelectionRange(sel[0],sel[1])}catch(e){} } }
+}
+function renderChrome(){
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current', b.dataset.p===S.page?'page':'false'));
+  const m=$('#mode'); m.className='mode';
+  let t='Connexion…', bt='', bb='';
+  if(S.demo){ m.classList.add('demo'); t='Exemple'; bt='Données d’exemple affichées. Rien n’est enregistré.'; bb='Quitter l’exemple'; }
+  else if(S.mode==='db'){ m.classList.add('live'); t=(S.me?S.me+' · ':'')+ROLES[S.role]; }
+  else if(S.mode==='auth'||S.mode==='attente'){ t='Non connecté'; } else if(S.mode==='setup'){ m.classList.add('local'); t='Configuration requise'; }
+  m.querySelector('span').textContent=t;
+  $('#banner').hidden=!bt; $('#banner-t').textContent=bt; $('#banner-b').hidden=!bb; $('#banner-b').textContent=bb;
+  $('#btn-export').hidden=!(window.XLSX && (S.mode==='db'||S.demo));
+  $('#btn-out').hidden=!(S.mode==='db'||S.mode==='attente');
+  $('#tabs').hidden=!(S.mode==='db'||S.demo);
+  $('#btn-acc').hidden=!(S.mode==='db' && S.role==='admin');
+  const ti=document.querySelector('#tabs button[data-p="imp"]'); if(ti) ti.hidden=!isAdm();
+  if(S.page==='imp'&&!isAdm()) S.page='dash';
+}
+const canW = () => S.canWrite || !!S.demo;
+const isAdm = () => S.role==='admin' || !!S.demo;
+const ROLES = {admin:'Admin', saisie:'Saisie', lecture:'Lecture'};
+const catTag = k => { const c=CATS[k]; return c?`<span class="cat"><i style="background:${c.color}"></i><b>${c.compte}</b> ${esc(c.short)}</span>`:''; };
+const pills = a => etatArticle(a).map(p=>`<span class="pill ${p.k}">${esc(p.t)}</span>`).join(' ');
+function emptyState(title, text, actions){
+  return `<div class="panel"><div class="empty"><div class="tape" aria-hidden="true"></div><h3>${esc(title)}</h3><p>${esc(text)}</p><div class="row">${actions}</div></div></div>`;
+}
+const startActions = () => (canW()?`<button class="btn primary" data-a="recep" type="button">Réceptionner un lot de liège</button><button class="btn" data-a="new-art" type="button">Ajouter un article</button>`+(isAdm()?`<button class="btn" data-a="goto" data-p="imp" type="button">Importer un fichier Excel</button>`:''):'') + (S.demo?'':`<button class="btn ghost" data-a="demo" type="button">Voir avec des données d’exemple</button>`);
+
+function loadingBlock(){ return `<div class="panel"><div class="empty"><p class="muted">Chargement des données…</p></div></div>`; }
+const ready = () => S.demo || S.mode!=='loading' && (S.mode!=='db' || (S.loaded.articles&&S.loaded.immos));
+
+/* Connexion */
+function pLogin(){
+  const up=S.signup;
+  return `<div class="auth">
+    <div><h2>${up?'Créer un compte':'Connexion'}</h2><p>${up?'Votre compte sera actif dès qu’un administrateur vous aura attribué un profil.':'Entrez votre identifiant et votre mot de passe.'}</p></div>
+    <form class="panel" id="auth-form" autocomplete="on"><div class="body">
+      ${fld('l-ident','Identifiant',`<input id="l-ident" autocomplete="username" autocapitalize="none" spellcheck="false" required>`,'',up?'Lettres, chiffres, point ou tiret ; 3 à 30 caractères.':'')}
+      ${up?fld('l-nom','Nom affiché',`<input id="l-nom" autocomplete="name" placeholder="ex. Karim Alaoui">`):''}
+      ${fld('l-mdp','Mot de passe',`<input id="l-mdp" type="password" autocomplete="${up?'new-password':'current-password'}" required>`,'',up?'8 caractères minimum.':'')}
+      ${up?fld('l-mdp2','Confirmer le mot de passe',`<input id="l-mdp2" type="password" autocomplete="new-password" required>`):''}
+      <div class="formerr" id="l-err" role="alert"></div>
+      <button class="btn primary" id="l-go" type="submit" style="justify-content:center">${up?'Créer mon compte':'Se connecter'}</button>
+      <button class="linkbtn" data-a="auth-toggle" type="button">${up?'J’ai déjà un compte':'Pas encore de compte ? En créer un'}</button>
+    </div></form>
+    <button class="btn ghost" data-a="demo" type="button" style="align-self:center">Voir l’outil avec des données d’exemple</button>
+  </div>`;
+}
+function pAttente(){
+  return `<div class="auth"><div class="panel"><div class="empty"><div class="tape" aria-hidden="true"></div>
+    <h3>Compte en attente</h3><p>Bonjour ${esc(S.me||'')}. Votre compte est créé. Un administrateur doit maintenant vous attribuer un profil (Saisie ou Lecture) pour que vous accédiez aux données.</p>
+    <div class="row"><button class="btn primary" data-a="recheck" type="button">Vérifier à nouveau</button><button class="btn" data-a="logout" type="button">Se déconnecter</button></div></div></div></div>`;
+}
+function pSetup(){
+  return `<div class="auth" style="max-width:640px"><div><h2>Configuration requise</h2><p>Cette copie de GesLiège n’est pas encore reliée à sa base de données.</p></div>
+    <div class="panel"><div class="body"><ol class="steps">
+      <li>Créez un projet gratuit sur <b>supabase.com</b>.</li>
+      <li>Dans <b>SQL Editor</b>, exécutez le fichier <code>supabase.sql</code> fourni.</li>
+      <li>Dans <b>Authentication › Sign In / Providers › Email</b>, désactivez « Confirm email ».</li>
+      <li>Dans <b>Project Settings › API Keys</b>, copiez l’URL du projet et la clé <i>Publishable</i> dans <code>config.js</code>.</li>
+      <li>Publiez les fichiers sur GitHub Pages (voir le guide d’installation).</li>
+    </ol>${!window.supabase?'<p class="neg" style="margin:0">La bibliothèque Supabase n’a pas pu être chargée : vérifiez la connexion Internet.</p>':''}</div></div>
+    <button class="btn ghost" data-a="demo" type="button" style="align-self:center">Voir l’outil avec des données d’exemple</button></div>`;
+}
+async function doAuth(){
+  const v=id=>{const e=$('#'+id);return e?e.value:'';}; const err=$('#l-err'); err.textContent=''; clearErrs();
+  const ident=v('l-ident').trim().toLowerCase(), mdp=v('l-mdp');
+  if(!/^[a-z0-9._-]{3,30}$/.test(ident)){ setErr('l-ident','Identifiant invalide : 3 à 30 lettres, chiffres, point ou tiret, sans espace ni accent.'); return; }
+  const email=ident+'@'+DOMAINE; const btn=$('#l-go'); btn.disabled=true;
+  try{
+    if(S.signup){
+      if(mdp.length<8){ setErr('l-mdp','8 caractères minimum.'); return; }
+      if(mdp!==v('l-mdp2')){ setErr('l-mdp2','Les deux mots de passe sont différents.'); return; }
+      const {data,error}=await SB.auth.signUp({email,password:mdp,options:{data:{nom:v('l-nom').trim()||ident}}});
+      if(error) throw new Error(/registered|already/i.test(error.message)?'Cet identifiant est déjà pris.':sbErr(error));
+      if(!data.session){ err.textContent='Compte créé, mais la confirmation par e-mail est activée dans Supabase : désactivez-la, puis connectez-vous.'; S.signup=false; return; }
+      S.signup=false; await startSession(data.session);
+    } else {
+      const {data,error}=await SB.auth.signInWithPassword({email,password:mdp});
+      if(error) throw new Error(/Invalid login/i.test(error.message)?'Identifiant ou mot de passe incorrect.':sbErr(error));
+      await startSession(data.session);
+    }
+  }catch(e){ err.textContent=e.message; }
+  finally{ if(btn.isConnected) btn.disabled=false; }
+}
+async function startSession(session){
+  S.uid=session.user.id; S.mode='loading'; S.demo=null; render();
+  try{ await loadTable('profils'); }catch(e){ S.profils=[]; }
+  const me=(S.profils||[]).find(p=>p.id===S.uid);
+  if(!me||me.role==='attente'){ S.me=me?(me.nom||me.identifiant):''; S.mode='attente'; return render(); }
+  S.mode='db'; applyProfil(me);
+  try{ await loadAll(); }catch(e){ toast(e.message,'err'); }
+  if(!S.subscribed){ subscribe(); S.subscribed=true; }
+  render();
+}
+function applyProfil(me){
+  if(me.role==='attente'){ S.mode='attente'; S.me=me.nom||me.identifiant; return; }
+  S.role=me.role; S.canWrite=me.role!=='lecture'; S.me=me.nom||me.identifiant; UID=S.me;
+}
+async function logout(){ try{ await SB.auth.signOut(); }catch(e){} S.mode='auth'; S.data=EMPTY(); S.profils=[]; S.loaded={articles:false,mouvements:false,immos:false,transfos:false}; closeModal(); render(); }
+async function openUsers(){
+  try{ await loadTable('profils'); }catch(e){}
+  const P=S.profils||[]; const att=P.filter(p=>p.role==='attente').length;
+  modal(`<header><div><h3>Utilisateurs</h3><p>${P.length} compte${P.length>1?'s':''}${att?' · '+att+' en attente de validation':''}</p></div><button class="x" data-a="close" type="button" aria-label="Fermer">×</button></header>
+  <div class="mb">
+    <div class="tw"><table><thead><tr><th>Identifiant</th><th>Nom</th><th>Profil</th><th>Créé le</th></tr></thead><tbody>
+    ${P.map(p=>`<tr><td class="code">${esc(p.identifiant)}</td><td>${esc(p.nom)}${p.id===S.uid?' <span class="muted">(vous)</span>':''}</td>
+      <td><select data-role="${esc(p.id)}" style="padding:5px 8px;border:1px solid var(--line-2);border-radius:4px;background:var(--surface)" aria-label="Profil de ${esc(p.identifiant)}">${[['admin','Admin'],['saisie','Saisie'],['lecture','Lecture'],['attente','Bloqué / en attente']].map(([k,l])=>`<option value="${k}" ${p.role===k?'selected':''}>${l}</option>`).join('')}</select></td>
+      <td class="num">${new Date(p.cree_le).toLocaleDateString('fr-FR')}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="note">Chaque personne crée son compte depuis l’écran de connexion (« Pas encore de compte ? »). Il arrive ici en « Bloqué / en attente » : choisissez son profil pour lui ouvrir l’accès. Pour retirer un accès, repassez-le en « Bloqué ».</p>
+    <div class="sect">Mon mot de passe</div>
+    <div class="fg">${fld('u-mdp','Nouveau mot de passe',`<input id="u-mdp" type="password" autocomplete="new-password">`)}<div class="f" style="justify-content:flex-end"><button class="btn" data-a="pwd" type="button">Changer mon mot de passe</button></div></div>
+  </div><footer><button class="btn" data-a="close" type="button">Fermer</button></footer>`, true);
+}
+
+/* Tableau de bord */
+function pDash(){
+  if(!ready()) return head('Tableau de bord','')+loadingBlock();
+  const A=D().articles, I=D().immos, M=D().mouvements, T=D().transfos||[];
+  if(!A.length && !I.length) return head('Tableau de bord','Vue d’ensemble du liège en stock, des transformations et des immobilisations.')+emptyState('Aucun lot ni article enregistré','Commencez par réceptionner un lot de liège adjugé : stères achetés, prix d’adjudication, frais et poids pesé donnent le coût réel au kilo. Vous pouvez aussi importer votre fichier Excel existant.', startActions());
+  const byCat=Object.fromEntries(CAT_KEYS.map(k=>[k,0]));
+  A.forEach(a=>{ if(byCat[a.cat]!=null) byCat[a.cat]+=valeur(a); });
+  const tot=Object.values(byCat).reduce((s,v)=>s+v,0);
+  const vnc=I.reduce((s,i)=>s+amort(i).vnc,0);
+  const brut=A.filter(a=>a.cat==='mp'&&(+a.qte||0)>0);
+  const brutKg=brut.reduce((s,a)=>s+(toKg(+a.qte||0,a.unite)||0),0), brutVal=brut.reduce((s,a)=>s+valeur(a),0);
+  const t30=T.filter(t=>t.ts>Date.now()-30*86400000&&t.in_kg>0);
+  const inKg=t30.reduce((s,t)=>s+t.in_kg,0), utKg=t30.reduce((s,t)=>s+(t.utile_kg||0),0);
+  const rend=inKg?utKg/inKg:null;
+  const al=A.map(a=>({a,e:etatArticle(a)})).filter(x=>x.e.length);
+  const max=Math.max(...Object.values(byCat),1);
+  const accRows=CAT_KEYS.map(k=>`<div class="acc"><span class="code">${CATS[k].compte}</span><span class="lab">${esc(CATS[k].label)}</span><span class="val">${mad(byCat[k])}</span><span class="bar"><i style="width:${(byCat[k]/max*100).toFixed(1)}%;background:${CATS[k].color}"></i></span></div>`).join('')
+    +`<div class="acc total"><span class="code">31</span><span class="lab">Total des stocks au coût</span><span class="val">${mad(tot)}</span></div>`
+    +`<div class="acc"><span class="code">23</span><span class="lab muted">Immobilisations nettes (VNC)</span><span class="val muted">${mad(vnc)}</span></div>`;
+  const byF={}; brut.forEach(a=>{ const f=a.origine||'Non renseignée'; byF[f]=(byF[f]||0)+(toKg(+a.qte||0,a.unite)||0); });
+  const fx=Object.entries(byF).sort((x,y)=>y[1]-x[1]); const fmax=Math.max(...fx.map(x=>x[1]),1);
+  const forRows=fx.map(([f,kg])=>`<div class="acc"><span class="code">${nf0.format(kg/brutKg*100)} %</span><span class="lab">${esc(f)}</span><span class="val">${qf(r2(kg/1000))} t</span><span class="bar"><i style="width:${(kg/fmax*100).toFixed(1)}%;background:var(--c-mp)"></i></span></div>`).join('');
+  al.sort((x,y)=>(y.e[0].k==='crit')-(x.e[0].k==='crit'));
+  const alertRows=al.slice(0,8).map(({a,e})=>`<div class="alert-row"><div class="grow"><b>${esc(a.designation)}</b><small>${esc(a.code)} · ${qf(a.qte)} ${esc(a.unite)}${a.qte_min!=null&&a.qte_min!==''?' · seuil '+qf(a.qte_min):''}</small></div>${e.map(p=>`<span class="pill ${p.k}">${esc(p.t)}</span>`).join('')}${canW()&&e.some(p=>p.t==='Rupture'||p.t==='Sous le seuil')?`<button class="btn sm" data-a="mv" data-t="entree" data-id="${esc(a.id)}" type="button">Entrée</button>`:''}</div>`).join('');
+  const last=M.slice(0,6);
+  const lastT=T.slice(0,5);
+  return head('Tableau de bord', 'Stocks au coût moyen unitaire pondéré (CMUP), liège brut suivi par lot et par forêt. Situation au '+dfr(todayISO())+'.')+`
+  <div class="kpis">
+    <div class="kpi"><span class="l">Stocks au coût</span><span class="v">${madK(tot)}</span><span class="s">${A.length} articles · comptes 31</span></div>
+    <div class="kpi"><span class="l">Liège brut en stock</span><span class="v">${qf(r2(brutKg/1000))} <small>t</small></span><span class="s">${qf(r2(brutKg/100))} qx · ${brut.length} lot${brut.length>1?'s':''} · ${madK(brutVal)}</span></div>
+    <div class="kpi"><span class="l">Rendement matière · 30 j</span><span class="v">${rend==null?'—':nf0.format(rend*100)+' <small>%</small>'}</span><span class="s">${rend==null?'aucune transformation pesée':'produits utiles / '+qf(r2(inKg/1000))+' t consommées'}</span></div>
+    <div class="kpi ${al.length?'warn':''}"><span class="l">Ruptures et seuils</span><span class="v">${al.length}</span><span class="s">${al.length?'articles à réapprovisionner':'aucun article sous le seuil'}</span></div>
+  </div>
+  <div class="cols">
+    <div class="stack">
+      <section class="panel"><h3>Valeur par compte CGNC<span class="aside">CMUP × quantité</span></h3><div class="body">${accRows}</div></section>
+      ${fx.length?`<section class="panel"><h3>Liège brut par forêt d’origine<span class="aside">poids pesé en stock</span></h3><div class="body">${forRows}</div></section>`:''}
+      <section class="panel"><h3>Derniers mouvements<button class="btn ghost sm" style="margin-left:auto" data-a="goto" data-p="mvt" type="button">Tout le journal</button></h3>${last.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Type</th><th>Article</th><th class="n">Qté</th><th class="n">Valeur</th></tr></thead><tbody>${last.map(m=>`<tr><td class="num">${dfr(m.date)}</td><td>${typePill(m)}</td><td>${esc(m.designation)}<span class="sub">${esc(m.code)}${m.piece?' · '+esc(m.piece):''}</span></td><td class="n ${m.qte<0?'neg':''}">${m.qte>0?'+':''}${qf(m.qte)} ${esc(m.unite)}</td><td class="n">${mad(m.valeur)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="body muted">Aucun mouvement pour l’instant.</div>`}</section>
+    </div>
+    <div class="stack">
+      <section class="panel alerts"><h3><span>À traiter · ${al.length}</span></h3><div class="body">${alertRows||'<p class="muted" style="margin:0">Rien à signaler : aucun article en rupture ou sous son seuil.</p>'}${al.length>8?`<p class="note">${al.length-8} autres alertes dans l’onglet Articles.</p>`:''}</div></section>
+      <section class="panel"><h3>Dernières transformations<button class="btn ghost sm" style="margin-left:auto" data-a="goto" data-p="trf" type="button">Voir tout</button></h3><div class="body">${lastT.length?lastT.map(t=>`<div class="alert-row"><div class="grow"><b>${esc(t.of||'Sans n° d’OF')}</b><small>${dfr(t.date)} · ${esc(t.in_code)} · ${qf(t.in_qte)} ${esc(t.in_unite)} → ${t.outs.length} produit${t.outs.length>1?'s':''}</small></div>${t.rendement!=null?`<span class="pill ${t.rendement>=0.5?'ok':'warn'}">${nf0.format(t.rendement*100)} %</span>`:''}</div>`).join(''):'<p class="muted" style="margin:0">Aucune transformation enregistrée. Une transformation consomme un lot et produit du liège classé, des bouchons ou des granulés, avec le coût réparti sur chaque produit.</p>'}</div></section>
+    </div>
+  </div>`;
+}
+const head = (t,p,right='') => `<div class="page-head"><div class="grow"><h2>${esc(t)}</h2>${p?`<p>${esc(p)}</p>`:''}</div>${right}</div>`;
+function typePill(m){
+  if(m.of) return m.type==='sortie'?'<span class="pill trf">Transfo · conso.</span>':'<span class="pill trf">Transfo · prod.</span>';
+  if(m.type==='entree') return '<span class="pill ok">Entrée</span>';
+  if(m.type==='sortie') return '<span class="pill neutral">Sortie</span>';
+  return '<span class="pill warn">Inventaire</span>';
+}
+
+/* Articles */
+function pArt(){
+  const right = canW()?`<div class="acts"><button class="btn" data-a="new-art" type="button">Nouvel article</button><button class="btn primary" data-a="recep" type="button">Réceptionner un lot</button></div>`:'';
+  if(!ready()) return head('Articles','',right)+loadingBlock();
+  const A=D().articles;
+  if(!A.length) return head('Articles','',right)+emptyState('Aucun article','Créez une fiche par article : code, désignation, unité, seuil d’alerte. Le stock et le CMUP se mettent à jour à chaque entrée ou sortie.', startActions());
+  const q=norm(S.f.q);
+  let L=A.filter(a=>(S.f.cat==='all'||a.cat===S.f.cat) && (!S.f.alert||etatArticle(a).length) && (!q||norm([a.code,a.designation,a.famille,a.emplacement,a.machine,a.fournisseur,a.origine,a.canton,a.lot_adj,a.lot_origine,a.calibre,a.qualite,a.dimensions].filter(Boolean).join(' ')).includes(q)));
+  L.sort((x,y)=>String(x.code).localeCompare(String(y.code),'fr',{numeric:true}));
+  const cnt=k=>A.filter(a=>a.cat===k).length;
+  const nAl=A.filter(a=>etatArticle(a).length).length;
+  const tot=L.reduce((s,a)=>s+valeur(a),0);
+  const rows=L.map(a=>{
+    const e=etatArticle(a); const qc=(+a.qte||0)<=0?'qty-zero':(e.some(x=>x.t==='Sous le seuil')?'qty-low':'');
+    const sub=[a.famille,a.origine,a.calibre,a.qualite,a.classe,a.dimensions,a.lot_adj||a.lot_origine,a.machine].filter(Boolean).map(esc).join(' · ');
+    return `<tr class="clickable" data-a="fiche" data-id="${esc(a.id)}"><td class="code">${esc(a.code)}</td><td>${esc(a.designation)}${sub?`<span class="sub">${sub}</span>`:''}</td><td>${catTag(a.cat)}</td>
+    <td class="n ${qc}">${qf(a.qte)} <span class="muted">${esc(a.unite)}</span></td><td class="n muted">${a.qte_min!=null&&a.qte_min!==''?qf(a.qte_min):'—'}</td><td class="n">${nfM.format(+a.cmup||0)}</td><td class="n">${nfM.format(valeur(a))}</td>
+    <td>${esc(a.emplacement||'—')}</td><td>${pills(a)}</td>
+    <td>${canW()?`<div class="acts"><button class="btn sm" data-a="mv" data-t="entree" data-id="${esc(a.id)}" type="button">Entrée</button><button class="btn sm" data-a="mv" data-t="sortie" data-id="${esc(a.id)}" type="button" ${(+a.qte||0)<=0?'disabled':''}>Sortie</button></div>`:''}</td></tr>`;
+  }).join('');
+  return head('Articles', A.length+' articles · quantités et CMUP mis à jour uniquement par les mouvements.', right)+`
+  <div class="toolbar">
+    <div class="chips" role="group" aria-label="Catégorie">
+      <button class="chip" data-a="fcat" data-k="all" aria-pressed="${S.f.cat==='all'}" type="button">Tous <span class="cnt">${A.length}</span></button>
+      ${CAT_KEYS.map(k=>`<button class="chip" data-a="fcat" data-k="${k}" aria-pressed="${S.f.cat===k}" type="button"><i style="width:8px;height:8px;border-radius:2px;background:${CATS[k].color}"></i>${esc(CATS[k].short)} <span class="cnt">${cnt(k)}</span></button>`).join('')}
+      <button class="chip" data-a="falert" aria-pressed="${S.f.alert}" type="button">Alertes <span class="cnt">${nAl}</span></button>
+    </div>
+    <label class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="f-q" type="search" placeholder="Code, désignation, emplacement…" value="${esc(S.f.q)}" aria-label="Rechercher un article"></label>
+  </div>
+  <div class="tw"><table><thead><tr><th>Code</th><th>Désignation</th><th>Compte</th><th class="n">Stock</th><th class="n">Seuil</th><th class="n">CMUP (MAD)</th><th class="n">Valeur (MAD)</th><th>Emplacement</th><th>État</th><th></th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="10" class="muted" style="text-align:center;padding:28px">Aucun article ne correspond à ce filtre.</td></tr>`}</tbody>
+  ${L.length?`<tfoot><tr><td colspan="6">${L.length} article${L.length>1?'s':''} affiché${L.length>1?'s':''}</td><td class="n">${nfM.format(tot)}</td><td colspan="3"></td></tr></tfoot>`:''}</table></div>`;
+}
+
+/* Journal */
+function pMvt(){
+  if(!ready()) return head('Mouvements','')+loadingBlock();
+  const M=D().mouvements; const q=norm(S.j.q);
+  const L=M.filter(m=>(S.j.type==='all'||m.type===S.j.type)&&(!q||norm(m.code+' '+m.designation+' '+m.piece+' '+m.motif).includes(q)));
+  const ids=[...new Set(L.map(m=>m.par).filter(Boolean))]; resolveNames(ids);
+  const rows=L.map(m=>`<tr><td class="num">${dfr(m.date)}</td><td>${typePill(m)}</td><td>${esc(m.piece||'—')}<span class="sub">${esc(m.motif||'')}</span></td><td class="code">${esc(m.code)}</td><td>${esc(m.designation)}</td>
+    <td class="n ${m.qte<0?'neg':''}">${m.qte>0?'+':''}${qf(m.qte)} <span class="muted">${esc(m.unite)}</span></td><td class="n">${nfM.format(m.pu)}</td><td class="n ${m.valeur<0?'neg':''}">${nfM.format(m.valeur)}</td><td class="n">${qf(m.qte_apres)}</td><td>${esc(nameOf(m.par))}</td></tr>`).join('');
+  return head('Mouvements','Journal des entrées, sorties et ajustements d’inventaire, du plus récent au plus ancien. Un mouvement enregistré ne se modifie pas : une erreur se corrige par un mouvement inverse.')+`
+  <div class="toolbar"><div class="chips" role="group" aria-label="Type">
+    ${[['all','Tous'],['entree','Entrées'],['sortie','Sorties'],['inventaire','Inventaire']].map(([k,l])=>`<button class="chip" data-a="jtype" data-k="${k}" aria-pressed="${S.j.type===k}" type="button">${l} <span class="cnt">${k==='all'?M.length:M.filter(m=>m.type===k).length}</span></button>`).join('')}
+  </div><label class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="j-q" type="search" placeholder="Article, n° de pièce, motif…" value="${esc(S.j.q)}" aria-label="Rechercher un mouvement"></label></div>
+  <div class="tw"><table><thead><tr><th>Date</th><th>Type</th><th>Pièce · motif</th><th>Code</th><th>Désignation</th><th class="n">Qté</th><th class="n">Coût unit.</th><th class="n">Valeur (MAD)</th><th class="n">Stock après</th><th>Saisi par</th></tr></thead>
+  <tbody>${rows||`<tr><td colspan="10" class="muted" style="text-align:center;padding:28px">${M.length?'Aucun mouvement ne correspond à ce filtre.':'Aucun mouvement enregistré. Les entrées et sorties se saisissent depuis l’onglet Articles.'}</td></tr>`}</tbody></table></div>
+  ${S.mode==='db'&&!S.demo&&M.length>=500?'<p class="note">Affichage limité aux 500 mouvements les plus récents. L’export Excel contient le journal affiché.</p>':''}`;
+}
+function nameOf(id){ return id||'—'; }
+let _nameQ=new Set(), _nameT=0;
+function resolveNames(ids){
+  if(!USER) return; ids.forEach(id=>{ if(id!==UID&&S.names[id]===undefined) _nameQ.add(id); });
+  if(!_nameQ.size||_nameT) return;
+  _nameT=setTimeout(async()=>{ const q=[..._nameQ]; _nameQ.clear(); _nameT=0;
+    try{ const ps=await USER.profiles(q); q.forEach(id=>{ S.names[id]=(ps[id]&&ps[id].name)||''; }); }catch(e){ q.forEach(id=>S.names[id]=''); }
+    render(); },60);
+}
+
+/* Inventaire */
+function pInv(){
+  if(!ready()) return head('Inventaire physique','')+loadingBlock();
+  const A=D().articles.filter(a=>a.cat===S.inv.cat).sort((x,y)=>String(x.emplacement||'').localeCompare(String(y.emplacement||''),'fr')||String(x.code).localeCompare(String(y.code),'fr',{numeric:true}));
+  let n=0, nE=0, vE=0;
+  const rows=A.map(a=>{
+    const raw=S.inv.counts[a.id]; const c=raw===undefined||raw===''?null:parseNum(raw);
+    let ec='', ev='';
+    if(c!=null&&!isNaN(c)){ n++; const d=r3(c-(+a.qte||0)); const v=r2(d*(+a.cmup||0)); if(Math.abs(d)>1e-9){nE++; vE+=v;}
+      ec=`<span class="${d<0?'neg':d>0?'pos':''}">${d>0?'+':''}${qf(d)}</span>`; ev=`<span class="${v<0?'neg':v>0?'pos':''}">${nfM.format(v)}</span>`; }
+    else if(c!=null) ec='<span class="neg">illisible</span>';
+    return `<tr><td class="code">${esc(a.code)}</td><td>${esc(a.designation)}</td><td>${esc(a.emplacement||'—')}</td><td class="n">${qf(a.qte)} <span class="muted">${esc(a.unite)}</span></td>
+    <td class="n"><input class="inv-in" id="inv-${esc(a.id)}" data-inv="${esc(a.id)}" inputmode="decimal" value="${esc(raw??'')}" aria-label="Quantité comptée ${esc(a.code)}" ${canW()?'':'disabled'}></td><td class="n">${ec}</td><td class="n">${ev}</td></tr>`;
+  }).join('');
+  return head('Inventaire physique','Saisissez les quantités comptées. Seules les lignes renseignées sont prises en compte ; chaque écart devient un mouvement « Inventaire » valorisé au CMUP.')+`
+  <div class="toolbar">
+    <div class="chips" role="group" aria-label="Catégorie">${CAT_KEYS.map(k=>`<button class="chip" data-a="icat" data-k="${k}" aria-pressed="${S.inv.cat===k}" type="button"><i style="width:8px;height:8px;border-radius:2px;background:${CATS[k].color}"></i>${esc(CATS[k].short)}</button>`).join('')}</div>
+    <div class="f" style="flex-direction:row;align-items:center;gap:8px;margin-left:auto"><label for="inv-date">Date</label><input id="inv-date" type="date" value="${esc(S.inv.date)}" style="width:auto"></div>
+    <div class="f" style="flex-direction:row;align-items:center;gap:8px"><label for="inv-piece">Réf.</label><input id="inv-piece" placeholder="INV-${new Date().getFullYear()}-01" value="${esc(S.inv.piece)}" style="width:150px"></div>
+  </div>
+  ${A.length?`<div class="tw"><table><thead><tr><th>Code</th><th>Désignation</th><th>Emplacement</th><th class="n">Stock théorique</th><th class="n">Compté</th><th class="n">Écart qté</th><th class="n">Écart (MAD)</th></tr></thead><tbody>${rows}</tbody>
+  <tfoot><tr><td colspan="4">${n} ligne${n>1?'s':''} comptée${n>1?'s':''} sur ${A.length} · ${nE} écart${nE>1?'s':''}</td><td></td><td></td><td class="n ${vE<0?'neg':''}">${nfM.format(vE)}</td></tr></tfoot></table></div>
+  ${canW()?`<div class="toolbar" style="margin-top:12px;justify-content:flex-end">${isAdm()?'':'<span class="muted grow">La validation de l\u2019inventaire est réservée aux administrateurs.</span>'}<button class="btn ghost" data-a="inv-clear" type="button" ${n?'':'disabled'}>Effacer les comptages</button><button class="btn primary" data-a="inv-ok" type="button" ${nE&&isAdm()?'':'disabled'}>Valider l’inventaire${nE?' ('+nE+' écart'+(nE>1?'s':'')+')':''}</button></div>`:''}`
+  : `<div class="panel"><div class="body muted">Aucun article dans cette catégorie.</div></div>`}`;
+}
+
+/* Immobilisations */
+function pImm(){
+  const right=isAdm()?`<button class="btn primary" data-a="new-imm" type="button">Nouvelle immobilisation</button>`:'';
+  if(!ready()) return head('Immobilisations','',right)+loadingBlock();
+  const I=[...D().immos].sort((x,y)=>String(x.code).localeCompare(String(y.code),'fr',{numeric:true}));
+  if(!I.length) return head('Immobilisations','',right)+emptyState('Aucune immobilisation','Enregistrez vos biens avec leur valeur d’acquisition, leur date de mise en service et leur taux : l’outil calcule l’amortissement, la dotation de l’exercice et la valeur nette.', (isAdm()?`<button class="btn primary" data-a="new-imm" type="button">Ajouter une immobilisation</button><button class="btn" data-a="goto" data-p="imp" type="button">Importer un fichier Excel</button>`:'')+(S.demo?'':`<button class="btn ghost" data-a="demo" type="button">Voir avec des données d’exemple</button>`));
+  let B=0,C=0,V=0,Dt=0;
+  const rows=I.map(im=>{ const a=amort(im); const t=IMMO_BY[im.type]||IMMO_BY.autre; B+=+im.valeur||0; C+=a.cum; V+=a.vnc; Dt+=a.dot;
+    const ek=im.etat==='Hors service'?'crit':im.etat==='En réparation'?'warn':'ok';
+    return `<tr class="clickable" data-a="fiche-imm" data-id="${esc(im.id)}"><td class="code">${esc(im.code)}</td><td>${esc(im.designation)}<span class="sub">${esc([im.marque,im.localisation].filter(Boolean).join(' · '))}</span></td><td><span class="cat"><i style="background:var(--c-im)"></i><b>${t.compte}</b> ${esc(t.label)}</span></td><td class="num">${dfr(im.date_service||im.date_achat)}</td>
+    <td class="n">${nfM.format(+im.valeur||0)}</td><td class="n">${nfQ.format(+im.taux||0)} %</td><td class="n">${nfM.format(a.dot)}</td><td class="n">${nfM.format(a.cum)}</td><td class="n"><b>${nfM.format(a.vnc)}</b></td><td><span class="pill ${ek}">${esc(im.etat||'En service')}</span></td></tr>`; }).join('');
+  return head('Immobilisations','Amortissement linéaire, prorata temporis au jour depuis la mise en service. Situation au '+dfr(todayISO())+'.',right)+`
+  <div class="kpis">
+    <div class="kpi"><span class="l">Valeur brute</span><span class="v">${madK(B)}</span><span class="s">${I.length} biens · comptes 23</span></div>
+    <div class="kpi"><span class="l">Amortissements cumulés</span><span class="v">${madK(C)}</span><span class="s">comptes 28</span></div>
+    <div class="kpi"><span class="l">Valeur nette (VNC)</span><span class="v">${madK(V)}</span><span class="s">${B?nf0.format(V/B*100):0} % de la valeur brute</span></div>
+    <div class="kpi"><span class="l">Dotation ${new Date().getFullYear()} à date</span><span class="v">${madK(Dt)}</span><span class="s">compte 6193</span></div>
+  </div>
+  <div class="tw"><table><thead><tr><th>Code</th><th>Désignation</th><th>Compte</th><th>Mise en service</th><th class="n">Valeur brute</th><th class="n">Taux</th><th class="n">Dotation exercice</th><th class="n">Amort. cumulés</th><th class="n">VNC</th><th>État</th></tr></thead><tbody>${rows}</tbody>
+  <tfoot><tr><td colspan="4">Total</td><td class="n">${nfM.format(B)}</td><td></td><td class="n">${nfM.format(Dt)}</td><td class="n">${nfM.format(C)}</td><td class="n">${nfM.format(V)}</td><td></td></tr></tfoot></table></div>`;
+}
+
+/* Transformation */
+function pTrf(){
+  const right=canW()?`<button class="btn primary" data-a="new-trf" type="button">Nouvelle transformation</button>`:'';
+  if(!ready()) return head('Transformation','',right)+loadingBlock();
+  const T=D().transfos||[];
+  const intro='Chaque transformation consomme un article (lot brut, liège bouilli, granulés) et produit un ou plusieurs articles. Le coût consommé, augmenté des frais, est réparti sur les produits ; le rendement matière se calcule sur les poids.';
+  if(!T.length) return head('Transformation',intro,right)+emptyState('Aucune transformation','Exemple : 2 400 kg de liège de reproduction bouillis et classés donnent des planches par calibre et par qualité, des rebuts destinés au broyage, et une perte d’eau et de croûte.', canW()?`<button class="btn primary" data-a="new-trf" type="button">Saisir une transformation</button>`+(S.demo?'':`<button class="btn ghost" data-a="demo" type="button">Voir avec des données d’exemple</button>`):'');
+  const rows=T.map(t=>`<tr><td class="num">${dfr(t.date)}</td><td>${esc(t.of||'—')}</td><td>${esc(t.in_designation)}<span class="sub">${esc(t.in_code)}</span></td><td class="n">${qf(t.in_qte)} <span class="muted">${esc(t.in_unite)}</span></td>
+    <td>${t.outs.map(o=>`${esc(o.designation)} <span class="muted">· ${qf(o.qte)} ${esc(o.unite)} à ${nfM.format(o.pu)}</span>`).join('<br>')}</td>
+    <td class="n">${nfM.format(t.cout_total)}</td><td class="n">${t.rendement!=null?`<span class="pill ${t.rendement>=0.5?'ok':'warn'}">${nf0.format(t.rendement*100)} %</span>`:'—'}</td><td class="n">${t.pertes_kg!=null?qf(r2(t.pertes_kg))+' kg':'—'}</td></tr>`).join('');
+  return head('Transformation',intro,right)+`<div class="tw"><table><thead><tr><th>Date</th><th>N° OF</th><th>Consommé</th><th class="n">Quantité</th><th>Produits obtenus (coût unitaire MAD)</th><th class="n">Coût total (MAD)</th><th class="n">Rendement utile</th><th class="n">Pertes</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <p class="note">Rendement utile = poids des produits hors granulés et déchets ÷ poids consommé. Pertes = poids consommé − poids de tous les produits (eau, croûte, poussières).</p>`;
+}
+const TRF={};
+function openTrf(){
+  Object.assign(TRF,{date:todayISO(), of:'', inId:'', qin:'', frais:'', lines:[{aid:'',q:'',kg:'',part:''}], err:''});
+  modal(`<header><div><h3>Nouvelle transformation</h3><p>Consommation d’un article et production d’un ou plusieurs autres, valorisées au coût.</p></div><button class="x" data-a="close" type="button" aria-label="Fermer">×</button></header><div class="mb" id="trf-body"></div>
+  <footer><button class="btn" data-a="close" type="button">Annuler</button><button class="btn primary" id="trf-save" type="button">Enregistrer la transformation</button></footer>`, true);
+  renderTrf(); $('#trf-save').onclick=saveTrf;
+}
+const artOpts=(cats,val,needStock)=>`<option value="">— choisir —</option>`+D().articles.filter(a=>cats.includes(a.cat)&&(!needStock||(+a.qte||0)>0)).sort((x,y)=>String(x.code).localeCompare(String(y.code),'fr',{numeric:true})).map(a=>`<option value="${esc(a.id)}" ${a.id===val?'selected':''}>${esc(a.code)} · ${esc(a.designation)}${needStock?' ('+qf(a.qte)+' '+esc(a.unite)+')':''}</option>`).join('');
+function trfCalc(){
+  const A=D().articles, a=A.find(x=>x.id===TRF.inId);
+  const qin=parseNum(TRF.qin), fr=parseNum(TRF.frais)||0;
+  const r={a, qin, fr, ok:false, lines:[]};
+  if(!a||!(qin>0)) return r;
+  r.cin=r2(qin*(+a.cmup||0)); r.total=r2(r.cin+fr); r.inKg=toKg(qin,a.unite);
+  r.lines=TRF.lines.map(l=>{ const o=A.find(x=>x.id===l.aid); const q=parseNum(l.q); const kg=o&&KG[o.unite]!=null&&q>0?toKg(q,o.unite):parseNum(l.kg); const part=parseNum(l.part);
+    return {o,q,kg:kg>0?kg:null,part:part>=0?part:null}; });
+  const parts=r.lines.reduce((s,l)=>s+(l.part||0),0); r.parts=r2(parts);
+  const all=r.lines.filter(l=>l.kg!=null), ut=all.filter(l=>l.o&&l.o.cat!=='gr');
+  r.outKg=all.reduce((s,l)=>s+l.kg,0); r.utKg=ut.reduce((s,l)=>s+l.kg,0);
+  const allKnown=r.lines.every(l=>l.kg!=null);
+  r.rend = r.inKg&&ut.length ? r.utKg/r.inKg : null; r.pertes = r.inKg&&allKnown ? r.inKg-r.outKg : null;
+  r.lines.forEach(l=>{ l.pu = l.o&&l.q>0&&l.part!=null ? r4(r.total*l.part/100/l.q) : null; });
+  return r;
+}
+function renderTrf(){
+  const ae=document.activeElement, fid=ae&&ae.id&&$('#trf-body')&&$('#trf-body').contains(ae)?ae.id:null;
+  const c=trfCalc(), a=c.a;
+  const outs=['sf','gr','pf','mp'];
+  $('#trf-body').innerHTML=`<div class="fg">
+    ${fld('t-date','Date',`<input id="t-date" type="date" value="${esc(TRF.date)}">`)}
+    ${fld('t-of','N° d’ordre de fabrication',`<input id="t-of" value="${esc(TRF.of)}" placeholder="OF-${new Date().getFullYear()}-001" autocomplete="off">`)}
+    ${fld('t-in','Article consommé *',`<select id="t-in">${artOpts(['mp','sf','gr'],TRF.inId,true)}</select>`,'full')}
+    ${fld('t-qin','Quantité consommée'+(a?' ('+esc(a.unite)+')':'')+' *',`<input id="t-qin" inputmode="decimal" value="${esc(TRF.qin)}" autocomplete="off">`,'',a?'Stock '+qf(a.qte)+' '+esc(a.unite)+' · CMUP '+mad(a.cmup):'')}
+    ${fld('t-frais','Frais de transformation (MAD)',`<input id="t-frais" inputmode="decimal" value="${esc(TRF.frais)}" autocomplete="off">`,'','Main-d’œuvre, énergie de bouillage, sous-traitance.')}
+  </div>
+  <div class="sect">Produits obtenus</div>
+  <div class="tw" style="border:1px solid var(--line)"><table><thead><tr><th>Article produit</th><th class="n">Quantité</th><th class="n">Poids (kg)</th><th class="n">Part du coût (%)</th><th class="n">Coût unitaire</th><th></th></tr></thead><tbody>
+  ${TRF.lines.map((l,i)=>{ const o=D().articles.find(x=>x.id===l.aid); const mass=o&&KG[o.unite]!=null; const cl=c.lines[i]||{};
+    return `<tr><td><select id="t-o${i}" data-tl="${i}" data-f="aid" style="width:100%;min-width:220px;padding:6px 8px;border:1px solid var(--line-2);border-radius:4px;background:var(--surface)">${artOpts(outs,l.aid,false)}</select></td>
+    <td class="n"><input class="inv-in" id="t-q${i}" data-tl="${i}" data-f="q" inputmode="decimal" value="${esc(l.q)}"> <span class="muted">${o?esc(o.unite):''}</span></td>
+    <td class="n">${mass?`<span class="muted">${cl.kg!=null?qf(r2(cl.kg)):'—'}</span>`:`<input class="inv-in" id="t-k${i}" data-tl="${i}" data-f="kg" inputmode="decimal" value="${esc(l.kg)}" placeholder="facult.">`}</td>
+    <td class="n"><input class="inv-in" id="t-p${i}" data-tl="${i}" data-f="part" inputmode="decimal" value="${esc(l.part)}" style="width:72px"></td>
+    <td class="n">${cl.pu!=null?nfM.format(cl.pu):'—'}</td>
+    <td>${TRF.lines.length>1?`<button class="btn ghost sm" data-a="trf-del" data-i="${i}" type="button" aria-label="Retirer la ligne">×</button>`:''}</td></tr>`; }).join('')}
+  </tbody></table></div>
+  <div class="toolbar" style="margin-top:8px"><button class="btn sm" data-a="trf-add" type="button">Ajouter un produit</button><button class="btn sm" data-a="trf-split" type="button">Répartir le coût au poids</button><span class="grow"></span><span class="${c.parts&&Math.abs(c.parts-100)>0.01?'neg':'muted'}">Parts : ${nfQ.format(c.parts||0)} %</span></div>
+  <div class="calc">${c.a&&c.qin>0?`<span>Coût consommé <b>${mad(c.cin)}</b></span><span>Coût total <b>${mad(c.total)}</b></span>${c.inKg?`<span>Poids consommé <b>${qf(r2(c.inKg))} kg</b></span>`:''}<span>Rendement utile <b>${c.rend!=null?nf0.format(c.rend*100)+' %':'—'}</b></span><span>Pertes <b>${c.pertes!=null?qf(r2(c.pertes))+' kg':'—'}</b></span>`:'<span class="muted">Choisissez l’article consommé et la quantité pour voir le coût et le rendement.</span>'}</div>
+  <div class="formerr" id="t-err">${esc(TRF.err)}</div>`;
+  if(fid){ const el=document.getElementById(fid); if(el){ el.focus(); if(el.setSelectionRange&&el.type!=='date'&&el.tagName==='INPUT') try{const n=el.value.length;el.setSelectionRange(n,n)}catch(e){} } }
+}
+function trfSplit(){
+  const c=trfCalc(); const ls=c.lines; if(!ls.length||ls.some(l=>l.kg==null)){ TRF.err='Renseignez le poids de chaque produit pour répartir au poids.'; return renderTrf(); }
+  const tot=ls.reduce((s,l)=>s+l.kg,0); let acc=0;
+  TRF.lines.forEach((l,i)=>{ const v=i===ls.length-1? r2(100-acc) : r2(ls[i].kg/tot*100); acc+=v; l.part=String(v).replace('.',','); });
+  TRF.err=''; renderTrf();
+}
+async function saveTrf(){
+  const c=trfCalc(); TRF.err='';
+  if(!c.a) TRF.err='Choisissez l’article consommé.';
+  else if(!(c.qin>0)) TRF.err='Quantité consommée attendue.';
+  else if(c.qin>(+c.a.qte||0)+1e-9) TRF.err='Stock insuffisant : '+qf(c.a.qte)+' '+c.a.unite+' disponibles.';
+  else if(!c.lines.length||c.lines.some(l=>!l.o||!(l.q>0)||l.part==null)) TRF.err='Chaque produit doit avoir un article, une quantité positive et une part du coût.';
+  else if(c.lines.some(l=>l.o.id===c.a.id)) TRF.err='Un produit ne peut pas être l’article consommé.';
+  else if(new Set(c.lines.map(l=>l.o.id)).size!==c.lines.length) TRF.err='Un même article apparaît deux fois dans les produits.';
+  else if(Math.abs(c.parts-100)>0.01) TRF.err='Les parts du coût doivent totaliser 100 % (actuellement '+nfQ.format(c.parts)+' %).';
+  else if(!parseISO(TRF.date)) TRF.err='Date attendue.';
+  if(TRF.err) return renderTrf();
+  const btn=$('#trf-save'); btn.disabled=true; btn.textContent='Enregistrement…';
+  const id=mid();
+  const info={date:TRF.date, piece:TRF.of||'', of:id};
+  try{
+    if(remote()){
+      await q(SB.rpc('enregistrer_transformation',{p:{id,date:TRF.date,of:TRF.of||'',in_aid:c.a.id,in_qte:c.qin,frais:c.fr,outs:c.lines.map(l=>({aid:l.o.id,qte:l.q,kg:l.kg,part:l.part})),in_kg:c.inKg,utile_kg:c.utKg,total_kg:c.outKg,rendement:c.rend,pertes_kg:c.pertes}}));
+      await Promise.all(['articles','mouvements','transfos'].map(loadTable));
+      closeModal(); toast('Transformation enregistrée'+(c.rend!=null?' · rendement utile '+nf0.format(c.rend*100)+' %':'')+'.'); render(); return;
+    }
+    await addMvt(c.a.id,'sortie',c.qin,0,{...info,motif:'Consommation transformation'});
+    const outs=[];
+    for(const l of c.lines){ await addMvt(l.o.id,'entree',l.q,l.pu,{...info,motif:'Production'}); outs.push({aid:l.o.id,code:l.o.code,designation:l.o.designation,cat:l.o.cat,qte:l.q,unite:l.o.unite,kg:l.kg,part:l.part,pu:l.pu}); }
+    const doc={id, date:TRF.date, of:TRF.of||'', in_aid:c.a.id, in_code:c.a.code, in_designation:c.a.designation, in_qte:c.qin, in_unite:c.a.unite, in_cmup:+c.a.cmup||0,
+      frais:c.fr, cout_total:c.total, in_kg:c.inKg, outs, utile_kg:c.utKg, total_kg:c.outKg, rendement:c.rend, pertes_kg:c.pertes, par:UID||'', ts:Date.now()};
+    Object.keys(doc).forEach(k=>{ if(doc[k]===null||doc[k]===undefined) delete doc[k]; });
+    doc.outs=doc.outs.map(o=>{ const x={...o}; Object.keys(x).forEach(k=>{ if(x[k]===null||x[k]===undefined) delete x[k]; }); return x; });
+    D().transfos=D().transfos||[]; D().transfos.unshift(doc);
+    closeModal(); toast('Transformation enregistrée'+(c.rend!=null?' · rendement utile '+nf0.format(c.rend*100)+' %':'')+'.'); render();
+  }catch(e){ btn.disabled=false; btn.textContent='Réessayer'; TRF.err=(e.message||e.code||'Erreur')+(remote()?' Rien n’a été enregistré.':''); renderTrf(); }
+}
+
+/* Réception d'un lot de liège brut */
+function openReception(){
+  const y=new Date().getFullYear();
+  modal(`<header><div><h3>Réceptionner un lot de liège</h3><p>Du prix d’adjudication au coût réel par kilo pesé.</p></div><button class="x" data-a="close" type="button" aria-label="Fermer">×</button></header>
+  <div class="mb"><div class="fg">
+    ${fld('r-famille','Type de liège',selx('r-famille',EXTRA.mp[0].o,'Reproduction en planches',false))}
+    ${fld('r-origine','Forêt d’origine',selx('r-origine',FORETS,'Maâmora',false))}
+    ${fld('r-canton','Canton / parcelle',inp('r-canton','','placeholder="ex. Canton C, parcelle 12"'))}
+    ${fld('r-campagne','Campagne de récolte',inp('r-campagne',String(y),'inputmode="numeric"'))}
+    ${fld('r-lot','N° de lot d’adjudication *',inp('r-lot','','autocomplete="off"'))}
+    ${fld('r-date','Date de réception',inp('r-date',todayISO(),'type="date"'))}
+  </div>
+  <div class="sect">Achat</div><div class="fg">
+    ${fld('r-steres','Stères adjugés',inp('r-steres','','inputmode="decimal"'))}
+    ${fld('r-prix','Prix d’adjudication (MAD / stère)',inp('r-prix','','inputmode="decimal"'))}
+    ${fld('r-taxes','Taxes et frais d’adjudication (MAD)',inp('r-taxes','','inputmode="decimal"'),'','Redevances et frais annexes facturés avec le lot.')}
+    ${fld('r-frais','Levée, débardage et transport (MAD)',inp('r-frais','','inputmode="decimal"'))}
+  </div>
+  <div class="sect">Pesée à l’entrée</div><div class="fg">
+    ${fld('r-kg','Poids pesé (kg) *',inp('r-kg','','inputmode="decimal"'),'','Poids net au pont-bascule.')}
+    ${fld('r-empl','Emplacement',inp('r-empl','','placeholder="Parc de séchage A"'))}
+    ${fld('r-code','Code article',inp('r-code','','placeholder="Généré à partir du lot"'),'','Laissez vide : LB-campagne-lot.')}
+    ${fld('r-seuil','Seuil d’alerte (kg)',inp('r-seuil','','inputmode="decimal"'))}
+  </div>
+  <div class="calc" id="r-calc"></div><div class="formerr" id="r-err"></div></div>
+  <footer><button class="btn" data-a="close" type="button">Annuler</button><button class="btn primary" id="r-save" type="button">Enregistrer la réception</button></footer>`);
+  const val=()=>{ const g=k=>parseNum($('#r-'+k).value); return {st:g('steres'),px:g('prix'),tx:g('taxes')||0,fr:g('frais')||0,kg:g('kg')}; };
+  const upd=()=>{ const v=val(); const achat=(v.st>0&&v.px>=0)?v.st*v.px:null; const tot=achat!=null?achat+v.tx+v.fr:null;
+    $('#r-calc').innerHTML = tot!=null ? `<span>Coût du lot <b>${mad(tot)}</b></span>${v.kg>0?`<span>Coût au kg <b>${nfM.format(tot/v.kg)} MAD</b></span><span>Au quintal <b>${nfM.format(tot/v.kg*100)} MAD</b></span><span>Densité <b>${nf0.format(v.kg/v.st)} kg/stère</b></span>`:'<span class="muted">Saisissez le poids pesé pour obtenir le coût au kilo.</span>'}` : '<span class="muted">Saisissez les stères et le prix d’adjudication pour calculer le coût du lot.</span>'; };
+  ['steres','prix','taxes','frais','kg'].forEach(k=>$('#r-'+k).oninput=upd); upd();
+  $('#r-save').onclick=async()=>{
+    clearErrs(); $('#r-err').textContent=''; const v=val(); let bad=false; const lot=$('#r-lot').value.trim(); const camp=$('#r-campagne').value.trim();
+    if(!lot){setErr('r-lot','Obligatoire pour la traçabilité.');bad=true;}
+    if(!(v.st>0)){setErr('r-steres','Nombre de stères attendu.');bad=true;}
+    if(!(v.px>=0)||v.px===null){setErr('r-prix','Prix attendu.');bad=true;}
+    if(isNaN(v.tx)||v.tx<0){setErr('r-taxes','Montant positif attendu.');bad=true;}
+    if(isNaN(v.fr)||v.fr<0){setErr('r-frais','Montant positif attendu.');bad=true;}
+    if(!(v.kg>0)){setErr('r-kg','Poids attendu.');bad=true;}
+    const code=($('#r-code').value.trim()||('LB-'+camp+'-'+lot)).replace(/\s+/g,'');
+    if(D().articles.some(x=>norm(x.code)===norm(code))){setErr('r-code','Ce code existe déjà : ce lot est-il déjà réceptionné ?');bad=true;}
+    const seuil=parseNum($('#r-seuil').value); if(seuil!==null&&(isNaN(seuil)||seuil<0)){setErr('r-seuil','Nombre positif attendu.');bad=true;}
+    if(bad) return;
+    const tot=v.st*v.px+v.tx+v.fr, fam=$('#r-famille').value, org=$('#r-origine').value;
+    const art={id:mid(), cat:'mp', code, designation:fam+' · '+org+' · lot '+lot, unite:'kg', qte:0, cmup:0,
+      famille:fam, origine:org, canton:$('#r-canton').value.trim(), campagne:parseNum(camp)||undefined, lot_adj:lot, steres:v.st, prix_stere:v.px,
+      emplacement:$('#r-empl').value.trim(), fournisseur:'ANEF', cree_le:Date.now()};
+    if(seuil!==null) art.qte_min=seuil;
+    Object.keys(art).forEach(k=>{ if(art[k]===''||art[k]===undefined||art[k]===null) delete art[k]; }); art.qte=0; art.cmup=0;
+    const btn=$('#r-save'); btn.disabled=true; btn.textContent='Enregistrement…';
+    try{ await saveArticle(art); await addMvt(art.id,'entree',v.kg,tot/v.kg,{date:$('#r-date').value||todayISO(),piece:'Lot '+lot,motif:'Adjudication / achat'});
+      closeModal(); toast('Lot '+lot+' réceptionné : '+qf(v.kg)+' kg à '+nfM.format(tot/v.kg)+' MAD/kg.'); S.page='art'; S.f.cat='mp'; render(); }
+    catch(e){ btn.disabled=false; btn.textContent='Réessayer'; $('#r-err').textContent='Échec : '+(e.message||e.code)+'.'; }
+  };
+}
+
+/* Import */
+const IMP = {target:'mp', wb:null, sheet:'', rows:[], hdr:[], map:{}, dup:'skip', fname:'', busy:false, prog:''};
+const IMP_FIELDS = {
+  art:[
+    {k:'code',l:'Code article',req:1,syn:['code','codearticle','ref','refarticle','reference','article','codeproduit','codepiece','codeinterne']},
+    {k:'designation',l:'Désignation',req:1,syn:['designation','libelle','description','nom','intitule','designationarticle']},
+    {k:'unite',l:'Unité',syn:['unite','u','um','unitedemesure','unitemesure','uom']},
+    {k:'qte',l:'Quantité en stock',t:'num',syn:['qte','quantite','qty','stock','stockactuel','quantiteenstock','qtestock','qteenstock','stockphysique']},
+    {k:'pu',l:'Coût unitaire (MAD)',t:'num',syn:['pu','puht','prixunitaire','prixunitaireht','prix','cout','coutunitaire','prixachat','prixdachat','cmup','coutderevient','coutrevient','prixderevient']},
+    {k:'qte_min',l:'Seuil d’alerte',t:'num',syn:['stockmin','stockminimum','stockmini','seuil','seuilalerte','seuildalerte','qtemin','mini','minimum']},
+    {k:'famille',l:'Type / forme / produit',syn:['famille','categorie','type','gamme','stade','sousfamille','typedeliege','produit','forme','nature']},
+    {k:'emplacement',l:'Emplacement',syn:['emplacement','magasin','localisation','rayon','depot','lieu']},
+    {k:'fournisseur',l:'Fournisseur',syn:['fournisseur','fourn','supplier']},
+    {k:'machine',l:'Machine / engin',syn:['machine','equipement','engin','materiel']},
+    {k:'ref_fab',l:'Réf. fabricant',syn:['reffabricant','referencefabricant','reffab','refconstructeur','reffournisseur','referencefournisseur']},
+    {k:'prix_vente',l:'Prix de vente',t:'num',syn:['prixvente','prixdevente','pv','pvht']},
+    {k:'origine',l:'Forêt d\u2019origine',syn:['foret','origine','provenance','foretdorigine','massif']},
+    {k:'canton',l:'Canton / parcelle',syn:['canton','parcelle','cantonparcelle','serie']},
+    {k:'lot_adj',l:'N° de lot',syn:['lot','nlot','numlot','numerolot','lotadjudication','nlotadjudication','numerodelot']},
+    {k:'calibre',l:'Calibre',syn:['calibre','epaisseur','lignes','calibrelignes']},
+    {k:'qualite',l:'Qualité',syn:['qualite','choix','qualitechoix']},
+    {k:'dimensions',l:'Dimensions',syn:['dimensions','dimension','format','taille']},
+    {k:'granulo',l:'Granulométrie',syn:['granulometrie','granulo','granulometriemm']},
+    {k:'notes',l:'Notes',syn:['notes','note','remarque','remarques','observation','observations','commentaire']}
+  ],
+  imm:[
+    {k:'code',l:'Code',req:1,syn:['code','codeimmo','codeimmobilisation','ref','reference','numinventaire','ninventaire']},
+    {k:'designation',l:'Désignation',req:1,syn:['designation','libelle','description','nom','intitule']},
+    {k:'type',l:'Type / compte',syn:['type','categorie','compte','nature','famille']},
+    {k:'valeur',l:'Valeur d’acquisition',t:'num',req:1,syn:['valeur','valeurachat','valeurdachat','valeurdacquisition','valeuracquisition','valeurbrute','montant','montantht','prixachat','cout']},
+    {k:'taux',l:'Taux (%)',t:'num',syn:['taux','tauxamortissement','tauxdamortissement','taux']},
+    {k:'date_achat',l:'Date d’acquisition',t:'date',syn:['dateachat','datedachat','dateacquisition','datedacquisition']},
+    {k:'date_service',l:'Mise en service',t:'date',syn:['datemiseenservice','miseenservice','dateservice','datedemiseenservice']},
+    {k:'marque',l:'Marque / modèle',syn:['marque','modele','marquemodele']},
+    {k:'num_serie',l:'N° de série',syn:['numserie','nserie','numerodeserie','serie','immatriculation']},
+    {k:'localisation',l:'Localisation',syn:['localisation','lieu','site','bureau','emplacement']},
+    {k:'responsable',l:'Responsable',syn:['responsable','affectation','utilisateur']},
+    {k:'fournisseur',l:'Fournisseur',syn:['fournisseur']}
+  ]
+};
+const impKind = () => IMP.target==='imm'?'imm':'art';
+function autoMap(){
+  const F=IMP_FIELDS[impKind()], used=new Set(), H=IMP.hdr.map(norm); IMP.map={};
+  F.forEach(f=>{ const i=H.findIndex((h,ix)=>h&&!used.has(ix)&&f.syn.includes(h)); if(i>=0){ IMP.map[f.k]=i; used.add(i); } });
+}
+function guessImmoType(v){
+  const s=norm(v); if(!s) return 'mat';
+  const byC=IMMO_TYPES.find(t=>s.startsWith(t.compte)); if(byC) return byC.k;
+  if(/terrain/.test(s)) return 'terrain'; if(/constr|batim|local|hangar/.test(s)) return 'constr';
+  if(/transport|vehicule|camion|voiture|utilitaire/.test(s)) return 'transp'; if(/informat|ordinat|pc|serveur|imprim/.test(s)) return 'info';
+  if(/mobilier/.test(s)) return 'mob'; if(/bureau/.test(s)) return 'matbur'; if(/agenc|amenag|install/.test(s)) return 'agen';
+  if(/materiel|outil|engin|machine/.test(s)) return 'mat'; return 'autre';
+}
+function impParse(){
+  const F=IMP_FIELDS[impKind()], kind=impKind();
+  const existing=new Set((kind==='imm'?D().immos:D().articles).map(x=>norm(x.code)));
+  const seen=new Set();
+  return IMP.rows.map((row,ix)=>{
+    const o={}, errs=[];
+    F.forEach(f=>{ const c=IMP.map[f.k]; if(c===undefined||c===null||c==='') return; const v=row[c];
+      if(f.t==='num'){ const n=parseNum(v); if(n!==null&&isNaN(n)) errs.push(f.l+' illisible (« '+String(v)+' »)'); else if(n!==null) o[f.k]=n; }
+      else if(f.t==='date'){ const d=parseDate(v); if(d==='ERR') errs.push(f.l+' illisible'); else if(d) o[f.k]=d; }
+      else { const s=(v instanceof Date)?parseDate(v):String(v??'').trim(); if(s) o[f.k]=s; } });
+    F.filter(f=>f.req).forEach(f=>{ if(o[f.k]===undefined||o[f.k]==='') errs.push(f.l+' manquant'); });
+    if(o.qte!=null&&o.qte<0) errs.push('Quantité négative');
+    if(o.valeur!=null&&o.valeur<0) errs.push('Valeur négative');
+    let st='ok'; const nc=norm(o.code);
+    if(errs.length) st='err'; else if(seen.has(nc)) {st='err'; errs.push('Code en double dans le fichier');} else if(existing.has(nc)) st='dup';
+    if(nc) seen.add(nc);
+    return {ix:ix+2, o, st, errs};
+  });
+}
+function pImp(){
+  const kind=impKind(), F=IMP_FIELDS[kind];
+  const xl=!!window.XLSX;
+  let body='';
+  if(!isAdm()) body=`<div class="panel"><div class="body muted">L’import est réservé aux administrateurs.</div></div>`;
+  else if(!xl) body=`<div class="panel"><div class="body">La bibliothèque Excel n’a pas pu être chargée (connexion Internet requise). Rechargez la page pour réessayer.</div></div>`;
+  else {
+    const P=IMP.rows.length?impParse():[];
+    const nOk=P.filter(p=>p.st==='ok').length, nDup=P.filter(p=>p.st==='dup').length, nErr=P.filter(p=>p.st==='err').length;
+    const nGo=nOk+(IMP.dup==='update'?nDup:0);
+    const shown=F.filter(f=>IMP.map[f.k]!==undefined);
+    body=`<section class="panel"><h3>1 · Destination et fichier</h3><div class="body">
+      <div class="fg">
+        <div class="f"><label for="imp-target">Importer dans</label><select id="imp-target">${CAT_KEYS.map(k=>`<option value="${k}" ${IMP.target===k?'selected':''}>${CATS[k].compte} · ${esc(CATS[k].label)}</option>`).join('')}<option value="imm" ${IMP.target==='imm'?'selected':''}>23 · Immobilisations</option></select></div>
+        ${IMP.wb&&IMP.wb.SheetNames.length>1?`<div class="f"><label for="imp-sheet">Onglet du classeur</label><select id="imp-sheet">${IMP.wb.SheetNames.map(n=>`<option ${n===IMP.sheet?'selected':''}>${esc(n)}</option>`).join('')}</select></div>`:'<div></div>'}
+      </div>
+      <div class="drop" id="drop" tabindex="0" role="button" style="margin-top:12px"><b>${IMP.fname?esc(IMP.fname):'Choisir un fichier Excel ou CSV'}</b><br><span class="muted">${IMP.fname?IMP.rows.length+' lignes lues · cliquer pour changer de fichier':'ou le glisser ici · .xlsx, .xls, .csv'}</span></div>
+      <input type="file" id="imp-file" accept=".xlsx,.xls,.csv" hidden>
+      <p class="note">La première ligne doit contenir les en-têtes. Les nombres au format français (1 234,50) et les dates Excel sont reconnus. <button class="btn ghost sm" data-a="tpl" type="button">Télécharger le modèle</button></p>
+    </div></section>`;
+    if(IMP.rows.length){
+      body+=`<section class="panel" style="margin-top:16px"><h3>2 · Correspondance des colonnes<span class="aside">en vert : reconnue automatiquement</span></h3><div class="body"><div class="map">
+        ${F.map(f=>`<div class="f ${IMP.map[f.k]!==undefined?'hit':''}"><label for="map-${f.k}">${esc(f.l)}${f.req?' *':''}</label><select id="map-${f.k}" data-map="${f.k}"><option value="">— ignorer —</option>${IMP.hdr.map((h,i)=>`<option value="${i}" ${IMP.map[f.k]===i?'selected':''}>${esc(h||'(colonne '+(i+1)+' sans titre)')}</option>`).join('')}</select></div>`).join('')}
+      </div>
+      ${kind==='art'?'<p class="note">Si une quantité est importée, elle crée un mouvement « Stock initial » valorisé au coût unitaire importé.</p>':''}
+      </div></section>
+      <section class="panel" style="margin-top:16px"><h3>3 · Contrôle avant import<span class="aside">${nOk} prêtes · ${nDup} déjà existantes · ${nErr} en erreur</span></h3>
+      <div class="body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">${nDup?`<div class="f" style="flex-direction:row;align-items:center;gap:8px"><label for="imp-dup">Codes déjà existants</label><select id="imp-dup" style="width:auto"><option value="skip" ${IMP.dup==='skip'?'selected':''}>Les ignorer</option><option value="update" ${IMP.dup==='update'?'selected':''}>Mettre à jour leur fiche (sans toucher au stock)</option></select></div>`:''}<span class="grow"></span>${IMP.prog?`<span class="muted">${esc(IMP.prog)}</span>`:''}<button class="btn primary" data-a="imp-go" type="button" ${nGo&&!IMP.busy?'':'disabled'}>Importer ${nGo} ligne${nGo>1?'s':''}</button></div>
+      <div class="tw"><table><thead><tr><th>Ligne</th><th>Statut</th>${shown.map(f=>`<th class="${f.t==='num'?'n':''}">${esc(f.l)}</th>`).join('')}</tr></thead><tbody>
+      ${P.slice(0,60).map(p=>`<tr><td class="num muted">${p.ix}</td><td>${p.st==='ok'?'<span class="pill ok">Prête</span>':p.st==='dup'?'<span class="pill warn">Existe déjà</span>':`<span class="pill crit" title="${esc(p.errs.join(' · '))}">Erreur</span><span class="sub neg">${esc(p.errs.join(' · '))}</span>`}</td>${shown.map(f=>`<td class="${f.t==='num'?'n':''}">${p.o[f.k]===undefined?'<span class="muted">—</span>':f.t==='num'?nfQ.format(p.o[f.k]):f.t==='date'?dfr(p.o[f.k]):esc(p.o[f.k])}</td>`).join('')}</tr>`).join('')}
+      </tbody></table></div>${P.length>60?`<p class="note" style="padding:0 16px 12px">Aperçu des 60 premières lignes sur ${P.length}.</p>`:''}</section>`;
+    }
+  }
+  return head('Import Excel','Reprenez un fichier existant : chaque colonne est contrôlée avant l’enregistrement.')+body;
+}
+async function loadFile(file){
+  if(!file) return;
+  try{
+    const buf=await file.arrayBuffer();
+    IMP.wb=XLSX.read(buf,{type:'array',cellDates:true});
+    IMP.fname=file.name; IMP.sheet=IMP.wb.SheetNames[0]; readSheet();
+  }catch(e){ toast('Fichier illisible : vérifiez qu’il s’agit bien d’un classeur Excel ou d’un CSV.','err'); }
+}
+function readSheet(){
+  const ws=IMP.wb.Sheets[IMP.sheet];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true,blankrows:false});
+  IMP.hdr=(rows[0]||[]).map(h=>String(h??'').trim());
+  IMP.rows=rows.slice(1).filter(r=>r.some(c=>String(c??'').trim()!==''));
+  IMP.prog=''; autoMap(); render();
+}
+async function runImport(){
+  const kind=impKind(), P=impParse().filter(p=>p.st==='ok'||(p.st==='dup'&&IMP.dup==='update'));
+  if(!P.length) return;
+  IMP.busy=true; let done=0, fail=0; const date=todayISO();
+  for(const p of P){
+    IMP.prog=`Import en cours… ${done}/${P.length}`; render();
+    try{
+      if(kind==='imm'){
+        const ex=D().immos.find(x=>norm(x.code)===norm(p.o.code));
+        const t=p.o.type?guessImmoType(p.o.type):(ex?ex.type:'mat');
+        const im={...(ex||{id:mid(), etat:'En service', cree_le:Date.now()}),
+          code:p.o.code, designation:p.o.designation, type:t, valeur:r2(p.o.valeur), taux:p.o.taux!=null?p.o.taux:(ex?ex.taux:IMMO_BY[t].taux)};
+        ['date_achat','date_service','marque','num_serie','localisation','responsable','fournisseur'].forEach(k=>{ if(p.o[k]!==undefined) im[k]=p.o[k]; });
+        if(!im.date_service&&!im.date_achat) im.date_achat=date;
+        await saveImmo(im);
+      } else {
+        const ex=D().articles.find(x=>norm(x.code)===norm(p.o.code));
+        const a={...(ex||{id:mid(), qte:0, cmup:0, cree_le:Date.now()}), cat:ex?ex.cat:IMP.target,
+          code:p.o.code, designation:p.o.designation};
+        ['unite','famille','emplacement','fournisseur','machine','ref_fab','notes','origine','canton','lot_adj','calibre','qualite','dimensions','granulo'].forEach(k=>{ if(p.o[k]!==undefined) a[k]=p.o[k]; });
+        if(p.o.qte_min!==undefined) a.qte_min=p.o.qte_min; if(p.o.prix_vente!==undefined) a.prix_vente=p.o.prix_vente;
+        if(!a.unite) a.unite=IMP.target==='pf'?'mille':IMP.target==='mc'?'u':'kg';
+        await saveArticle(a);
+        if(!ex && p.o.qte>0){ await addMvt(a.id,'entree',p.o.qte,p.o.pu||0,{date,piece:'Reprise '+IMP.fname.slice(0,40),motif:'Stock initial (import)'}); }
+      }
+      done++;
+    }catch(e){ fail++; if(e&&e.code==='quota_exceeded'){ toast('Capacité de stockage atteinte : import interrompu après '+done+' lignes.','err'); break; } }
+  }
+  IMP.busy=false; IMP.prog=''; IMP.rows=[]; IMP.wb=null; IMP.fname='';
+  toast(done+' ligne'+(done>1?'s':'')+' importée'+(done>1?'s':'')+(fail?' · '+fail+' en échec':''), fail?'err':'ok');
+  S.page=kind==='imm'?'imm':'art'; if(kind!=='imm'){S.f.cat=IMP.target;} render();
+}
+
+/* ───────────── Fenêtres ───────────── */
+function modal(html, wide){
+  const root=$('#modal-root'); root.innerHTML=`<div class="ov" id="ov"><div class="modal ${wide?'wide':''}" role="dialog" aria-modal="true">${html}</div></div>`;
+  const first=root.querySelector('input:not([type=hidden]),select,textarea'); if(first) setTimeout(()=>first.focus(),20);
+}
+function closeModal(){ $('#modal-root').innerHTML=''; }
+function confirmBox(title, text, ok='Confirmer', danger=false){
+  return new Promise(res=>{
+    modal(`<header><div><h3>${esc(title)}</h3></div></header><div class="mb"><p style="margin:0">${esc(text)}</p></div><footer><button class="btn" id="cb-no" type="button">Annuler</button><button class="btn ${danger?'danger':'primary'}" id="cb-ok" type="button">${esc(ok)}</button></footer>`);
+    $('#cb-no').onclick=()=>{closeModal();res(false)}; $('#cb-ok').onclick=()=>{closeModal();res(true)};
+    setTimeout(()=>$('#cb-ok')&&$('#cb-ok').focus(),30);
+  });
+}
+function toast(msg, kind='ok'){
+  const t=document.createElement('div'); t.className='toast'+(kind==='err'?' err':''); t.setAttribute('role','status'); t.textContent=msg;
+  $('#toast-root').innerHTML=''; $('#toast-root').appendChild(t); setTimeout(()=>t.remove(), kind==='err'?6000:3200);
+}
+const fld = (id,label,input,cls='',hint='') => `<div class="f ${cls}" id="w-${id}"><label for="${id}">${label}</label>${input}<span class="hint">${hint}</span></div>`;
+const inp = (id,val,attrs='') => `<input id="${id}" value="${esc(val??'')}" ${attrs}>`;
+const selx = (id,opts,val,blank=true) => `<select id="${id}">${blank?'<option value="">—</option>':''}${opts.map(o=>{const v=typeof o==='object'?o.v:o, l=typeof o==='object'?o.l:o; return `<option value="${esc(v)}" ${String(val??'')===String(v)?'selected':''}>${esc(l)}</option>`}).join('')}</select>`;
+function setErr(id,msg){ const w=document.getElementById('w-'+id); if(w){ w.classList.add('err'); w.querySelector('.hint').textContent=msg; } }
+function clearErrs(){ document.querySelectorAll('.f.err').forEach(w=>{w.classList.remove('err');}); }
+
+/* Article : création / modification */
+function openArticle(id, cat){
+  const a = id ? D().articles.find(x=>x.id===id) : {cat:cat||(S.f.cat!=='all'?S.f.cat:'sf'), unite:({pf:'mille',mc:'u'})[cat||S.f.cat]||'kg'};
+  if(!a) return;
+  const isNew=!id; const c=a.cat;
+  const ex=(EXTRA[c]||[]).map(f=>{
+    const v=a[f.k]; const id2='a-'+f.k;
+    if(f.t==='sel') return fld(id2,f.l,selx(id2,f.o,v));
+    if(f.t==='date') return fld(id2,f.l,inp(id2,v,'type="date"'));
+    if(f.t==='num') return fld(id2,f.l,inp(id2,v,'inputmode="decimal"'));
+    return fld(id2,f.l,inp(id2,v));
+  }).join('');
+  modal(`<header><div><h3>${isNew?'Nouvel article':'Modifier l’article'}</h3><p>${isNew?'La fiche décrit l’article ; le stock se met à jour par les mouvements.':esc(a.code+' · '+a.designation)}</p></div><button class="x" data-a="close" type="button" aria-label="Fermer">×</button></header>
+  <div class="mb"><div class="fg">
+    ${fld('a-cat','Catégorie (compte)',`<select id="a-cat" ${isNew?'':'disabled'}>${CAT_KEYS.map(k=>`<option value="${k}" ${k===c?'selected':''}>${CATS[k].compte} · ${esc(CATS[k].label)}</option>`).join('')}</select>`,'full')}
+    ${fld('a-code','Code article *',inp('a-code',a.code,'autocomplete="off"'))}
+    ${fld('a-unite','Unité',selx('a-unite',UNITES.includes(a.unite)||!a.unite?UNITES:[a.unite,...UNITES],a.unite||'kg',false),'','qx = quintal (100 kg) · mille = 1 000 bouchons')}
+    ${fld('a-designation','Désignation *',inp('a-designation',a.designation),'full')}
+    ${fld('a-qte_min','Seuil d’alerte',inp('a-qte_min',a.qte_min,'inputmode="decimal"'),'','Alerte quand le stock est à ce niveau ou en dessous.')}
+    ${fld('a-emplacement','Emplacement',inp('a-emplacement',a.emplacement,'placeholder="Dépôt A · rayon 3"'))}
+    ${ex}
+    ${fld('a-notes','Notes',`<textarea id="a-notes">${esc(a.notes||'')}</textarea>`,'full')}
+  </div>
+  ${isNew?`<div class="sect">Stock initial (facultatif)</div><div class="fg">${fld('a-q0','Quantité',inp('a-q0','','inputmode="decimal"'))}${fld('a-pu0','Coût unitaire HT (MAD)',inp('a-pu0','','inputmode="decimal"'),'',c==='pf'||c==='sf'?'Coût de production, pas le prix de vente.':'')}</div>`:''}
+  <div class="formerr" id="a-err"></div></div>
+  <footer>${!isNew&&isAdm()?`<button class="btn danger" data-a="del-art" data-id="${esc(a.id)}" type="button" style="margin-right:auto">Supprimer</button>`:''}<button class="btn" data-a="close" type="button">Annuler</button><button class="btn primary" id="a-save" type="button">Enregistrer</button></footer>`);
+  if(isNew) $('#a-cat').onchange=e=>{ const keep=collectArticle(a); openArticle(null,e.target.value); ['code','designation','qte_min','emplacement','notes'].forEach(k=>{ const el=$('#a-'+k); if(el&&keep[k]!=null) el.value=keep[k]; }); };
+  $('#a-save').onclick=async()=>{
+    clearErrs(); $('#a-err').textContent='';
+    const o=collectArticle(a); let bad=false;
+    if(!o.code){setErr('a-code','Obligatoire.');bad=true;}
+    else if(D().articles.some(x=>x.id!==a.id&&norm(x.code)===norm(o.code))){setErr('a-code','Ce code existe déjà.');bad=true;}
+    if(!o.designation){setErr('a-designation','Obligatoire.');bad=true;}
+    if(o.qte_min!==null&&(isNaN(o.qte_min)||o.qte_min<0)){setErr('a-qte_min','Nombre positif attendu.');bad=true;}
+    (EXTRA[o.cat]||[]).filter(f=>f.t==='num').forEach(f=>{ if(o[f.k]!==null&&o[f.k]!==undefined&&(isNaN(o[f.k])||o[f.k]<0)){setErr('a-'+f.k,'Nombre positif attendu.');bad=true;} });
+    let q0=null,pu0=null;
+    if(isNew){ q0=parseNum($('#a-q0').value); pu0=parseNum($('#a-pu0').value);
+      if(q0!==null&&(isNaN(q0)||q0<0)){setErr('a-q0','Nombre positif attendu.');bad=true;}
+      if(q0>0&&(pu0===null||isNaN(pu0)||pu0<0)){setErr('a-pu0','Coût requis pour valoriser le stock initial.');bad=true;} }
+    if(bad) return;
+    const btn=$('#a-save'); btn.disabled=true; btn.textContent='Enregistrement…';
+    try{
+      const rec={...a, ...o}; if(isNew){ rec.id=mid(); rec.qte=0; rec.cmup=0; rec.cree_le=Date.now(); }
+      Object.keys(rec).forEach(k=>{ if(rec[k]===null||rec[k]===undefined||rec[k]==='') delete rec[k]; });
+      rec.qte=+rec.qte||0; rec.cmup=+rec.cmup||0;
+      await saveArticle(rec);
+      if(isNew&&q0>0) await addMvt(rec.id,'entree',q0,pu0,{date:todayISO(),motif:'Stock initial',piece:''});
+      closeModal(); toast(isNew?'Article créé.':'Article enregistré.'); render();
+    }catch(e){ btn.disabled=false; btn.textContent='Enregistrer'; $('#a-err').textContent='Échec de l’enregistrement : '+(e.message||e.code||'erreur inconnue')+'. Réessayez.'; }
+  };
+}
+function collectArticle(a){
+  const v=id=>{ const el=$('#'+id); return el?el.value.trim():''; };
+  const cat=$('#a-cat')?$('#a-cat').value:a.cat;
+  const o={cat, code:v('a-code'), designation:v('a-designation'), unite:v('a-unite')||'kg', emplacement:v('a-emplacement'), notes:v('a-notes')};
+  const m=v('a-qte_min'); o.qte_min=m===''?null:parseNum(m);
+  (EXTRA[cat]||[]).forEach(f=>{ const x=v('a-'+f.k); o[f.k]= f.t==='num'?(x===''?null:parseNum(x)):x; });
+  return o;
+}
+
+/* Mouvement */
+function openMvt(id, type){
+  const a=D().articles.find(x=>x.id===id); if(!a) return;
+  const E=type==='entree';
+  modal(`<header><div><h3>${E?'Entrée en stock':'Sortie de stock'}</h3><p>${esc(a.code)} · ${esc(a.designation)} — stock ${qf(a.qte)} ${esc(a.unite)}, CMUP ${mad(a.cmup)}</p></div><button class="x" data-a="close" type="button" aria-label="Fermer">×</button></header>
+  <div class="mb"><div class="fg">
+    ${fld('m-date','Date',inp('m-date',todayISO(),'type="date"'))}
+    ${fld('m-qte','Quantité ('+esc(a.unite)+') *',inp('m-qte','','inputmode="decimal" autocomplete="off"'))}
+    ${E?fld('m-pu','Coût unitaire HT (MAD) *',inp('m-pu',a.cmup?String(a.cmup).replace('.',','):'','inputmode="decimal"'),'',a.cat==='pf'||a.cat==='sf'?'Coût de production de l’unité.':'Prix d’achat HT + frais accessoires.'):fld('m-pu','Coût de sortie',`<input id="m-pu" value="${esc(mad(a.cmup))}" disabled>`,'','Valorisée au CMUP actuel.')}
+    ${fld('m-piece',E?'N° de pièce (BL, BR, OF…)':'N° de pièce (BS, BL client…)',inp('m-piece','','autocomplete="off"'))}
+    ${fld('m-motif','Motif',selx('m-motif',MOTIFS[type],MOTIFS[type][0],false),'full')}
+  </div><div class="calc" id="m-calc"></div><div class="formerr" id="m-err"></div></div>
+  <footer><button class="btn" data-a="close" type="button">Annuler</button><button class="btn primary" id="m-save" type="button">Enregistrer ${E?'l’entrée':'la sortie'}</button></footer>`);
+  const upd=()=>{ const q=parseNum($('#m-qte').value), pu=E?parseNum($('#m-pu').value):a.cmup;
+    if(!(q>0)||(E&&!(pu>=0))){ $('#m-calc').innerHTML='<span class="muted">Saisissez la quantité'+(E?' et le coût':'')+' pour voir le stock après mouvement.</span>'; return; }
+    try{ const c=calcMvt(a,type,q,pu); $('#m-calc').innerHTML=`<span>Valeur <b>${mad(Math.abs(c.val))}</b></span><span>Stock après <b>${qf(c.q1)} ${esc(a.unite)}</b></span><span>CMUP après <b>${mad(c.c1)}</b></span>`; }
+    catch(e){ $('#m-calc').innerHTML=`<span class="neg">${esc(e.message)}</span>`; } };
+  $('#m-qte').oninput=upd; if(E) $('#m-pu').oninput=upd; upd();
+  $('#m-save').onclick=async()=>{
+    clearErrs(); $('#m-err').textContent='';
+    const q=parseNum($('#m-qte').value), pu=E?parseNum($('#m-pu').value):a.cmup, d=$('#m-date').value;
+    let bad=false;
+    if(!(q>0)){setErr('m-qte','Quantité positive attendue.');bad=true;}
+    if(E&&!(pu>=0)){setErr('m-pu','Coût attendu (0 accepté pour un don ou un échantillon).');bad=true;}
+    if(!parseISO(d)){setErr('m-date','Date attendue.');bad=true;}
+    if(bad) return;
+    const btn=$('#m-save'); btn.disabled=true; btn.textContent='Enregistrement…';
+    try{ await addMvt(a.id,type,q,pu,{date:d,piece:$('#m-piece').value.trim(),motif:$('#m-motif').value}); closeModal(); toast((E?'Entrée':'Sortie')+' enregistrée : '+qf(q)+' '+a.unite+' · '+a.code); render(); }
+    catch(e){ btn.disabled=false; btn.textContent='Réessayer'; $('#m-err').textContent=e.message||('Échec : '+(e.code||'erreur inconnue')); }
+  };
+}
+
+/* Fiche article */
+function openFiche(id){
+  const a=D().articles.find(x=>x.id===id); if(!a) return;
+  const M=D().mouvements.filter(m=>m.aid===id).slice(0,30);
+  const det=[['Compte',CATS[a.cat]?CATS[a.cat].compte+' · '+CATS[a.cat].label:'—'],['Stock',qf(a.qte)+' '+a.unite],['CMUP',mad(a.cmup)],['Valeur',mad(valeur(a))],['Seuil d’alerte',a.qte_min!=null&&a.qte_min!==''?qf(a.qte_min)+' '+a.unite:'—'],['Emplacement',a.emplacement||'—']];
+  (EXTRA[a.cat]||[]).forEach(f=>{ if(a[f.k]!==undefined&&a[f.k]!=='') det.push([f.l, f.t==='date'?dfr(a[f.k]):f.t==='num'?(['prix_vente','prix_stere'].includes(f.k)?mad(a[f.k]):f.k==='campagne'?String(a[f.k]):qf(a[f.k])):a[f.k]]); });
+  if(KG[a.unite]!=null&&a.cmup>0) det.push(['Coût au quintal',mad(a.cmup*100/KG[a.unite])]);
+  if(a.cat==='mp'&&a.steres>0){ const rec=D().mouvements.find(m=>m.aid===a.id&&m.type==='entree'&&!m.of); if(rec) det.push(['Densité à la réception',nf0.format(rec.qte/a.steres)+' kg/stère']); }
+  if(a.cat==='pf'&&a.prix_vente>0&&a.cmup>0) det.push(['Marge unitaire',mad(a.prix_vente-a.cmup)+' ('+nf0.format((a.prix_vente-a.cmup)/a.prix_vente*100)+' %)']);
+  modal(`<header><div><h3>${esc(a.designation)}</h3><p>${esc(a.code)} ${pills(a)}</p></div><button class="x" data-a="close" type="button" aria-label="Fermer">×</button></header>
+  <div class="mb"><dl class="dl">${det.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>${a.notes?`<p class="note">${esc(a.notes)}</p>`:''}
+  <div class="sect">Derniers mouvements</div>
+  ${M.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Type</th><th>Pièce</th><th class="n">Qté</th><th class="n">Coût unit.</th><th class="n">Stock après</th></tr></thead><tbody>${M.map(m=>`<tr><td class="num">${dfr(m.date)}</td><td>${typePill(m)}</td><td>${esc(m.piece||m.motif||'—')}</td><td class="n ${m.qte<0?'neg':''}">${m.qte>0?'+':''}${qf(m.qte)}</td><td class="n">${nfM.format(m.pu)}</td><td class="n">${qf(m.qte_apres)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">Aucun mouvement chargé pour cet article.</p>'}
+  </div><footer>${canW()?`<button class="btn" data-a="edit-art" data-id="${esc(a.id)}" type="button" style="margin-right:auto">Modifier la fiche</button><button class="btn" data-a="mv" data-t="sortie" data-id="${esc(a.id)}" type="button" ${(+a.qte||0)<=0?'disabled':''}>Sortie</button><button class="btn primary" data-a="mv" data-t="entree" data-id="${esc(a.id)}" type="button">Entrée</button>`:'<button class="btn" data-a="close" type="button">Fermer</button>'}</footer>`, true);
+}
+
+/* Immobilisation */
+function openImmo(id){
+  const im=id?D().immos.find(x=>x.id===id):{type:'mat',taux:10,etat:'En service',date_achat:todayISO()};
+  if(!im) return; const isNew=!id;
+  modal(`<header><div><h3>${isNew?'Nouvelle immobilisation':'Modifier l’immobilisation'}</h3><p>${isNew?'Le taux proposé suit le type choisi ; ajustez-le à votre plan d’amortissement.':esc(im.code+' · '+im.designation)}</p></div><button class="x" data-a="close" type="button" aria-label="Fermer">×</button></header>
+  <div class="mb"><div class="fg">
+    ${fld('i-code','Code *',inp('i-code',im.code,'autocomplete="off"'))}
+    ${fld('i-type','Type (compte)',selx('i-type',IMMO_TYPES.map(t=>({v:t.k,l:t.compte+' · '+t.label})),im.type,false))}
+    ${fld('i-designation','Désignation *',inp('i-designation',im.designation),'full')}
+    ${fld('i-valeur','Valeur d’acquisition HT (MAD) *',inp('i-valeur',im.valeur,'inputmode="decimal"'))}
+    ${fld('i-taux','Taux d’amortissement (%)',inp('i-taux',im.taux,'inputmode="decimal"'),'','Terrains : 0 (non amortissables).')}
+    ${fld('i-date_achat','Date d’acquisition',inp('i-date_achat',im.date_achat,'type="date"'))}
+    ${fld('i-date_service','Mise en service',inp('i-date_service',im.date_service,'type="date"'),'','Point de départ de l’amortissement (sinon la date d’acquisition).')}
+    ${fld('i-marque','Marque / modèle',inp('i-marque',im.marque))}
+    ${fld('i-num_serie','N° de série / immatriculation',inp('i-num_serie',im.num_serie))}
+    ${fld('i-localisation','Localisation',inp('i-localisation',im.localisation))}
+    ${fld('i-responsable','Responsable',inp('i-responsable',im.responsable))}
+    ${fld('i-fournisseur','Fournisseur',inp('i-fournisseur',im.fournisseur))}
+    ${fld('i-etat','État',selx('i-etat',ETATS,im.etat||'En service',false))}
+  </div><div class="formerr" id="i-err"></div></div>
+  <footer>${!isNew&&isAdm()?`<button class="btn danger" data-a="del-imm" data-id="${esc(im.id)}" type="button" style="margin-right:auto">Supprimer</button>`:''}<button class="btn" data-a="close" type="button">Annuler</button><button class="btn primary" id="i-save" type="button">Enregistrer</button></footer>`);
+  if(isNew) $('#i-type').onchange=e=>{ $('#i-taux').value=String(IMMO_BY[e.target.value].taux).replace('.',','); };
+  $('#i-save').onclick=async()=>{
+    clearErrs(); const v=k=>$('#i-'+k).value.trim(); let bad=false;
+    const o={code:v('code'),designation:v('designation'),type:v('type'),valeur:parseNum(v('valeur')),taux:parseNum(v('taux')),date_achat:v('date_achat'),date_service:v('date_service'),marque:v('marque'),num_serie:v('num_serie'),localisation:v('localisation'),responsable:v('responsable'),fournisseur:v('fournisseur'),etat:v('etat')};
+    if(!o.code){setErr('i-code','Obligatoire.');bad=true;} else if(D().immos.some(x=>x.id!==im.id&&norm(x.code)===norm(o.code))){setErr('i-code','Ce code existe déjà.');bad=true;}
+    if(!o.designation){setErr('i-designation','Obligatoire.');bad=true;}
+    if(!(o.valeur>=0)){setErr('i-valeur','Montant attendu.');bad=true;}
+    if(o.taux===null) o.taux=0; if(isNaN(o.taux)||o.taux<0||o.taux>100){setErr('i-taux','Entre 0 et 100.');bad=true;}
+    if(!o.date_achat&&!o.date_service){setErr('i-date_achat','Une date d’acquisition ou de mise en service est nécessaire.');bad=true;}
+    if(bad) return;
+    const btn=$('#i-save'); btn.disabled=true;
+    try{ const rec={...im,...o}; if(isNew){rec.id=mid(); rec.cree_le=Date.now();}
+      Object.keys(rec).forEach(k=>{ if(rec[k]===''||rec[k]===null||rec[k]===undefined) delete rec[k]; }); rec.valeur=r2(rec.valeur); rec.taux=+rec.taux||0;
+      await saveImmo(rec); closeModal(); toast(isNew?'Immobilisation créée.':'Immobilisation enregistrée.'); render(); }
+    catch(e){ btn.disabled=false; $('#i-err').textContent='Échec de l’enregistrement : '+(e.message||e.code)+'. Réessayez.'; }
+  };
+}
+function openImmoFiche(id){
+  const im=D().immos.find(x=>x.id===id); if(!im) return; const a=amort(im); const t=IMMO_BY[im.type]||IMMO_BY.autre; const P=plan(im); const yr=new Date().getFullYear();
+  modal(`<header><div><h3>${esc(im.designation)}</h3><p>${esc(im.code)} · ${t.compte} ${esc(t.label)}${im.marque?' · '+esc(im.marque):''}</p></div><button class="x" data-a="close" type="button" aria-label="Fermer">×</button></header>
+  <div class="mb"><dl class="dl">
+    <div><dt>Valeur brute</dt><dd>${mad(im.valeur)}</dd></div><div><dt>Taux</dt><dd>${nfQ.format(+im.taux||0)} % · ${+im.taux>0?nfQ.format(100/im.taux)+' ans':'non amortissable'}</dd></div><div><dt>Mise en service</dt><dd>${dfr(im.date_service||im.date_achat)}</dd></div>
+    <div><dt>Amortissements cumulés</dt><dd>${mad(a.cum)}</dd></div><div><dt>VNC au ${dfr(todayISO())}</dt><dd><b>${mad(a.vnc)}</b></dd></div><div><dt>Dotation ${yr} à date</dt><dd>${mad(a.dot)}</dd></div>
+    ${im.num_serie?`<div><dt>N° série</dt><dd>${esc(im.num_serie)}</dd></div>`:''}${im.localisation?`<div><dt>Localisation</dt><dd>${esc(im.localisation)}</dd></div>`:''}${im.responsable?`<div><dt>Responsable</dt><dd>${esc(im.responsable)}</dd></div>`:''}
+  </dl>
+  ${P.length?`<div class="sect">Plan d’amortissement (au 31/12)</div><div class="tw"><table><thead><tr><th>Exercice</th><th class="n">Dotation</th><th class="n">Cumul</th><th class="n">VNC fin d’exercice</th></tr></thead><tbody>${P.map(r=>`<tr ${r.an===yr?'style="font-weight:600"':''}><td class="num">${r.an}</td><td class="n">${nfM.format(r.dot)}</td><td class="n">${nfM.format(r.cum)}</td><td class="n">${nfM.format(r.vnc)}</td></tr>`).join('')}</tbody></table></div>`:''}
+  </div><footer>${isAdm()?`<button class="btn primary" data-a="edit-imm" data-id="${esc(im.id)}" type="button">Modifier</button>`:'<button class="btn" data-a="close" type="button">Fermer</button>'}</footer>`, true);
+}
+
+/* Export Excel */
+function buildWorkbook(){
+  const wb=XLSX.utils.book_new();
+  const A=[...D().articles].sort((x,y)=>(x.cat||'').localeCompare(y.cat||'')||String(x.code).localeCompare(String(y.code),'fr',{numeric:true}));
+  const art=[['Compte','Catégorie','Code','Désignation','Unité','Quantité','Équivalent kg','Seuil d’alerte','CMUP (MAD)','Valeur (MAD)','Emplacement','Type / forme / produit','Forêt d’origine','Campagne','N° de lot','Stères adjugés','Calibre','Qualité / classe','Dimensions','Prix de vente (MAD)','Alerte']]
+    .concat(A.map(a=>[CATS[a.cat]?CATS[a.cat].compte:'',CATS[a.cat]?CATS[a.cat].label:'',a.code,a.designation,a.unite,+a.qte||0,toKg(+a.qte||0,a.unite)??'',a.qte_min!=null&&a.qte_min!==''?+a.qte_min:'',r4(a.cmup),valeur(a),a.emplacement||'',a.famille||'',a.origine||'',a.campagne||'',a.lot_adj||a.lot_origine||'',a.steres!=null?+a.steres:'',a.calibre||'',a.qualite||a.classe||'',a.dimensions||'',a.prix_vente!=null?+a.prix_vente:'',etatArticle(a).map(e=>e.t).join(', ')]));
+  const ws1=XLSX.utils.aoa_to_sheet(art,{cellDates:true}); ws1['!cols']=[8,30,16,44,7,11,12,11,12,14,18,22,13,10,10,10,13,13,18,12,16].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws1,'Articles');
+  const mv=[['Date','Type','N° pièce','Motif','Compte','Code','Désignation','Quantité','Unité','Coût unitaire (MAD)','Valeur (MAD)','Stock après','CMUP après']]
+    .concat(D().mouvements.map(m=>[parseISO(m.date)||'',m.type==='entree'?'Entrée':m.type==='sortie'?'Sortie':'Inventaire',m.piece||'',m.motif||'',CATS[m.cat]?CATS[m.cat].compte:'',m.code,m.designation,m.qte,m.unite,m.pu,m.valeur,m.qte_apres,m.cmup_apres]));
+  const ws2=XLSX.utils.aoa_to_sheet(mv,{cellDates:true}); ws2['!cols']=[11,10,14,22,8,12,34,10,7,14,14,11,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws2,'Mouvements');
+  const tr=[['Date','N° OF','Article consommé','Quantité consommée','Unité','Frais (MAD)','Coût total (MAD)','Produit','Quantité produite','Unité produit','Part du coût (%)','Coût unitaire (MAD)','Rendement utile (%)','Pertes (kg)']];
+  (D().transfos||[]).forEach(t=>t.outs.forEach((o,i)=>tr.push([parseISO(t.date)||'',t.of||'',t.in_code+' · '+t.in_designation,i?'':t.in_qte,i?'':t.in_unite,i?'':(t.frais||0),i?'':t.cout_total,o.code+' · '+o.designation,o.qte,o.unite,o.part,o.pu,i||t.rendement==null?'':r2(t.rendement*100),i||t.pertes_kg==null?'':r2(t.pertes_kg)])));
+  const wsT=XLSX.utils.aoa_to_sheet(tr,{cellDates:true}); wsT['!cols']=[11,14,44,12,7,11,13,44,12,8,10,12,12,10].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,wsT,'Transformations');
+  const im=[['Compte','Type','Code','Désignation','Valeur brute (MAD)','Taux (%)','Date d’acquisition','Mise en service','Dotation exercice (MAD)','Amortissements cumulés (MAD)','VNC (MAD)','État','Localisation','Responsable','Marque / modèle','N° série']]
+    .concat([...D().immos].map(i=>{const a=amort(i),t=IMMO_BY[i.type]||IMMO_BY.autre;return [t.compte,t.label,i.code,i.designation,+i.valeur||0,+i.taux||0,parseISO(i.date_achat)||'',parseISO(i.date_service)||'',a.dot,a.cum,a.vnc,i.etat||'',i.localisation||'',i.responsable||'',i.marque||'',i.num_serie||'']}));
+  const ws3=XLSX.utils.aoa_to_sheet(im,{cellDates:true}); ws3['!cols']=[8,26,12,34,16,8,13,13,16,18,14,13,16,16,18,14].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws3,'Immobilisations');
+  [ws1,ws2,wsT,ws3].forEach(ws=>{ Object.keys(ws).forEach(k=>{ const c=ws[k]; if(k[0]==='!'||!c) return; if(c.t==='n') c.z=Number.isInteger(c.v)?'# ##0':'# ##0.00'; if(c.t==='d') c.z='dd/mm/yyyy'; }); });
+  return wb;
+}
+function downloadBlob(name, blob){ const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),2000); }
+async function saveFile(name, data){ downloadBlob(name, data instanceof Blob?data:new Blob([data])); toast('Fichier prêt : '+name); }
+async function doExport(){
+  if(!window.XLSX) return toast('La bibliothèque Excel n’est pas chargée.','err');
+  const out=XLSX.write(buildWorkbook(),{type:'array',bookType:'xlsx'});
+  await saveFile('GesLiege_'+todayISO()+'.xlsx', new Blob([out]));
+}
+async function doTemplate(){
+  const kind=impKind(); const F=IMP_FIELDS[kind];
+  const ex = kind==='imm' ? ['IMM-002','Cuves d’ébouillantage inox','2332',620000,10,'01/02/2023','','','','Atelier bouillage','',''] : F.map(f=>({code:'PB-1113-1',designation:'Planches bouillies 11-13 lignes',unite:'kg',qte:'2 790',pu:'24,50',qte_min:800,famille:'Planches bouillies classées',emplacement:'Magasin classement',origine:'Maâmora',lot_adj:'M-114',calibre:'11-13 lignes',qualite:'2e choix'})[f.k]??'');
+  const ws=XLSX.utils.aoa_to_sheet([F.map(f=>f.l.replace(' *','')), ex]); ws['!cols']=F.map(()=>({wch:18}));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Modèle');
+  await saveFile('Modele_import_'+(kind==='imm'?'immobilisations':'articles')+'.xlsx', new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})]));
+}
+
+/* Inventaire : validation */
+async function validateInv(){
+  const A=D().articles.filter(a=>a.cat===S.inv.cat);
+  const L=A.map(a=>{ const raw=S.inv.counts[a.id]; const c=raw===undefined||raw===''?null:parseNum(raw); if(c==null||isNaN(c)) return null; const d=r3(c-(+a.qte||0)); return Math.abs(d)>1e-9?{a,d,c}:null; }).filter(Boolean);
+  if(!L.length) return;
+  if(L.some(x=>x.c<0)) return toast('Une quantité comptée est négative : corrigez-la avant de valider.','err');
+  const v=L.reduce((s,x)=>s+x.d*(+x.a.cmup||0),0);
+  if(!await confirmBox('Valider l’inventaire', L.length+' ajustement'+(L.length>1?'s':'')+' seront enregistrés pour un écart total de '+mad(v)+'. Les mouvements créés ne se modifient pas ensuite.','Valider')) return;
+  const piece=S.inv.piece||('INV-'+S.inv.date); let ok=0, ko=0;
+  for(const x of L){ try{ await addMvt(x.a.id,'inventaire',x.d,0,{date:S.inv.date,piece,motif:'Écart d’inventaire'}); ok++; delete S.inv.counts[x.a.id]; }catch(e){ ko++; } }
+  toast(ok+' ajustement'+(ok>1?'s':'')+' enregistré'+(ok>1?'s':'')+(ko?' · '+ko+' en échec (stock modifié entre-temps ?)':''), ko?'err':'ok'); render();
+}
+
+/* ───────────── Données d'exemple (mémoire uniquement) ───────────── */
+function demoData(){
+  const y=new Date().getFullYear(), dPlus=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+  const A=[
+    ['mp','LB-'+y+'-M114','Reproduction en planches · Maâmora · lot M-114','kg',11860,9.04,null,{famille:'Reproduction en planches',origine:'Maâmora',canton:'Canton B, parcelle 7',campagne:y,lot_adj:'M-114',steres:62,prix_stere:1450,fournisseur:'ANEF',emplacement:'Parc de séchage A'}],
+    ['mp','LB-'+y+'-L027','Reproduction en morceaux · Larache · lot L-027','kg',6850,5.6,null,{famille:'Reproduction en morceaux',origine:'Larache',campagne:y,lot_adj:'L-027',steres:31,prix_stere:820,fournisseur:'ANEF',emplacement:'Parc de séchage B'}],
+    ['mp','LB-'+y+'-B009','Liège mâle (démasclage) · Bab Azhar · lot B-009','kg',3200,1.9,null,{famille:'Liège mâle (démasclage)',origine:'Bab Azhar',campagne:y,lot_adj:'B-009',steres:18,prix_stere:210,fournisseur:'ANEF',emplacement:'Parc de séchage B'}],
+    ['sf','PB-1113-1','Planches bouillies 11-13 lignes, 1er-2e choix','kg',2790,24.5,800,{famille:'Planches bouillies classées',calibre:'11-13 lignes',qualite:'2e choix',stade:'Classement',lot_origine:'M-114',emplacement:'Magasin classement'}],
+    ['sf','PB-1315-3','Planches bouillies 13-15 lignes, 3e choix','kg',2160,16,null,{famille:'Planches bouillies classées',calibre:'13-15 lignes',qualite:'3e choix',stade:'Classement',lot_origine:'M-114',emplacement:'Magasin classement'}],
+    ['sf','PB-0911-R','Planches minces 9-11 lignes, rebut','kg',390,6.2,null,{famille:'Planches bouillies classées',calibre:'9-11 lignes',qualite:'Rebut',stade:'Classement',emplacement:'Zone broyage'}],
+    ['sf','BND-45','Bandes de 45 mm pour tubage','kg',420,31,500,{famille:'Bandes',calibre:'13-15 lignes',qualite:'2e choix',stade:'Découpe',emplacement:'Atelier tubage'}],
+    ['gr','GR-0510','Granulés 0,5-1 mm','kg',4180,4.1,null,{famille:'Granulés',granulo:'0,5-1',densite:70,emplacement:'Silo 1'}],
+    ['gr','GR-24','Granulés 2-4 mm','kg',3020,3.2,null,{famille:'Granulés',granulo:'2-4',densite:60,emplacement:'Silo 2'}],
+    ['gr','DEC-BOU','Déchets de bouchonnerie','kg',1150,1.4,null,{famille:'Déchets de bouchonnerie',emplacement:'Zone broyage'}],
+    ['pf','BN-4524-S','Bouchons naturels 45 × 24 mm, Supérieur','mille',186,1850,null,{famille:'Bouchons naturels',dimensions:'45 × 24 mm',classe:'Supérieur',prix_vente:2900,emplacement:'Magasin produits finis'}],
+    ['pf','BC-3824','Bouchons colmatés 38 × 24 mm','mille',240,720,100,{famille:'Bouchons colmatés',dimensions:'38 × 24 mm',classe:'3e',prix_vente:1150,emplacement:'Magasin produits finis'}],
+    ['pf','BT-4423','Bouchons techniques 1+1, 44 × 23,5 mm','mille',95,980,null,{famille:'Bouchons techniques (1+1)',dimensions:'44 × 23,5 mm',prix_vente:1480,emplacement:'Magasin produits finis'}],
+    ['pf','PLQ-10','Plaques d’aggloméré 1000 × 500 × 10 mm','plaque',1200,28,null,{famille:'Plaques et rouleaux aggloméré',dimensions:'1000 × 500 × 10 mm',prix_vente:46,emplacement:'Hangar 2'}],
+    ['pf','EXP-50','Panneaux de liège expansé 50 mm','m²',340,95,400,{famille:'Panneaux de liège expansé',dimensions:'1000 × 500 × 50 mm',prix_vente:150,emplacement:'Hangar 2'}],
+    ['mc','LIANT-PU','Liant polyuréthane pour aggloméré','kg',380,42,500,{famille:'Liants et colles PU',fournisseur:'Fournisseur (exemple)'}],
+    ['mc','PEROX-35','Peroxyde d’hydrogène 35 % (lavage)','L',0,9.5,200,{famille:'Produits de lavage et traitement'}],
+    ['mc','BB-1T','Big-bags 1 t','u',140,38,50,{famille:'Emballages (sacs, big-bags, cartons)'}]
+  ].map(([cat,code,des,u,q,c,mn,x],i)=>({id:'d'+i,cat,code,designation:des,unite:u,qte:q,cmup:c,...(mn!=null?{qte_min:mn}:{}),...x}));
+  const id=c=>A.find(a=>a.code===c).id;
+  const T=[
+    {id:'t2',date:dPlus(-3),of:'OF-'+y+'-034',in_aid:id('PB-0911-R'),in_code:'PB-0911-R',in_designation:'Planches minces 9-11 lignes, rebut',in_qte:900,in_unite:'kg',in_cmup:6.2,frais:1800,cout_total:7380,in_kg:900,
+     outs:[{aid:id('GR-0510'),code:'GR-0510',designation:'Granulés 0,5-1 mm',cat:'gr',qte:380,unite:'kg',kg:380,part:48,pu:9.3221},{aid:id('GR-24'),code:'GR-24',designation:'Granulés 2-4 mm',cat:'gr',qte:420,unite:'kg',kg:420,part:52,pu:9.1371}],utile_kg:0,total_kg:800,pertes_kg:100,ts:Date.now()-3*86400000},
+    {id:'t1',date:dPlus(-8),of:'OF-'+y+'-031',in_aid:id('LB-'+y+'-M114'),in_code:'LB-'+y+'-M114',in_designation:'Reproduction en planches · Maâmora · lot M-114',in_qte:2400,in_unite:'kg',in_cmup:9.04,frais:6500,cout_total:28196,in_kg:2400,
+     outs:[{aid:id('PB-1113-1'),code:'PB-1113-1',designation:'Planches bouillies 11-13 lignes, 1er-2e choix',cat:'sf',qte:640,unite:'kg',kg:640,part:52,pu:22.9093},{aid:id('PB-1315-3'),code:'PB-1315-3',designation:'Planches bouillies 13-15 lignes, 3e choix',cat:'sf',qte:520,unite:'kg',kg:520,part:38,pu:20.6048},{aid:id('PB-0911-R'),code:'PB-0911-R',designation:'Planches minces 9-11 lignes, rebut',cat:'sf',qte:310,unite:'kg',kg:310,part:10,pu:9.0955}],utile_kg:1470,total_kg:1470,rendement:0.6125,pertes_kg:930,ts:Date.now()-8*86400000}
+  ];
+  const M=[]; let ts=Date.now()-86400000*14;
+  const add=(code,type,q,pu,date,piece,motif,of)=>{ const a=A.find(x=>x.code===code); M.unshift({id:'m'+M.length,aid:a.id,code,designation:a.designation,cat:a.cat,unite:a.unite,type,date,qte:q,pu,valeur:r2(q*pu),piece,motif,par:'',ts:ts+=3600e3,qte_apres:a.qte,cmup_apres:a.cmup,of:of||''}); };
+  add('LB-'+y+'-M114','entree',14260,9.04,dPlus(-12),'Lot M-114','Adjudication / achat');
+  add('LB-'+y+'-M114','sortie',-2400,9.04,dPlus(-8),'OF-'+y+'-031','Consommation transformation','t1');
+  add('PB-1113-1','entree',640,22.91,dPlus(-8),'OF-'+y+'-031','Production','t1');
+  add('PB-1315-3','entree',520,20.6,dPlus(-8),'OF-'+y+'-031','Production','t1');
+  add('PB-0911-R','entree',310,9.1,dPlus(-8),'OF-'+y+'-031','Production','t1');
+  add('BN-4524-S','sortie',-60,1850,dPlus(-6),'FAC EXP-0412','Vente export');
+  add('PB-0911-R','sortie',-900,6.2,dPlus(-3),'OF-'+y+'-034','Consommation transformation','t2');
+  add('GR-0510','entree',380,9.32,dPlus(-3),'OF-'+y+'-034','Production','t2');
+  add('GR-24','entree',420,9.14,dPlus(-3),'OF-'+y+'-034','Production','t2');
+  add('PEROX-35','sortie',-120,9.5,dPlus(-1),'BS 0217','Consommation production');
+  const I=[
+    {id:'i1',code:'IMM-001',designation:'Hangar de séchage et de stockage',type:'constr',valeur:1900000,taux:4,date_achat:'2020-06-01',localisation:'Site industriel',etat:'En service'},
+    {id:'i2',code:'IMM-002',designation:'Cuves d’ébouillantage inox',type:'mat',valeur:620000,taux:10,date_achat:'2023-02-01',localisation:'Atelier bouillage',etat:'En service'},
+    {id:'i3',code:'IMM-003',designation:'Ligne de tubage et de rectification',type:'mat',valeur:1350000,taux:10,date_achat:'2024-05-15',localisation:'Atelier bouchons',etat:'En service'},
+    {id:'i4',code:'IMM-004',designation:'Broyeur et tamis à granulés',type:'mat',valeur:480000,taux:10,date_achat:'2022-09-01',localisation:'Zone broyage',etat:'En réparation'},
+    {id:'i5',code:'IMM-005',designation:'Pont-bascule 60 t',type:'mat',valeur:310000,taux:10,date_achat:'2021-03-01',localisation:'Entrée site',etat:'En service'},
+    {id:'i6',code:'IMM-006',designation:'Camion plateau 19 t',type:'transp',valeur:860000,taux:20,date_achat:(y-1)+'-01-10',localisation:'Parc',etat:'En service'}
+  ];
+  return {articles:A, mouvements:M, immos:I, transfos:T};
+}
+
+/* ───────────── Évènements ───────────── */
+document.addEventListener('click', async e=>{
+  const t=e.target.closest('[data-a]'); if(!t) { if(e.target.id==='ov') closeModal(); return; }
+  const a=t.dataset.a, id=t.dataset.id;
+  if(a==='close') return closeModal();
+  if(a==='goto'){ closeModal(); S.page=t.dataset.p; return render(); }
+  if(a==='demo'){ S.demo=demoData(); return render(); }
+  if(a==='auth-toggle'){ S.signup=!S.signup; return render(); }
+  if(a==='logout') return logout();
+  if(a==='recheck'){ const {data}=await SB.auth.getSession(); return data.session?startSession(data.session):logout(); }
+  if(a==='pwd'){ const v=$('#u-mdp').value; if(v.length<8) return toast('8 caractères minimum.','err'); const {error}=await SB.auth.updateUser({password:v}); if(error) return toast(sbErr(error),'err'); $('#u-mdp').value=''; return toast('Mot de passe modifié.'); }
+  if(a==='new-art') return openArticle(null);
+  if(a==='recep') return openReception();
+  if(a==='new-trf') return openTrf();
+  if(a==='trf-add'){ TRF.lines.push({aid:'',q:'',kg:'',part:''}); return renderTrf(); }
+  if(a==='trf-del'){ TRF.lines.splice(+t.dataset.i,1); return renderTrf(); }
+  if(a==='trf-split') return trfSplit();
+  if(a==='edit-art') return openArticle(id);
+  if(a==='fiche'){ if(e.target.closest('button')) return; return openFiche(id); }
+  if(a==='mv'){ e.stopPropagation(); return openMvt(id, t.dataset.t); }
+  if(a==='del-art'){
+    const ar=D().articles.find(x=>x.id===id); if(!ar) return;
+    if((+ar.qte||0)!==0){ $('#a-err').textContent='Suppression impossible : le stock n’est pas nul. Soldez-le d’abord par une sortie ou un inventaire.'; return; }
+    if(!await confirmBox('Supprimer l’article', ar.code+' · '+ar.designation+' sera retiré de la liste. Ses mouvements restent dans le journal.','Supprimer',true)) return;
+    try{ await deleteArticle(id); toast('Article supprimé.'); }catch(err){ toast('Suppression impossible : '+(err.message||err.code),'err'); } return render();
+  }
+  if(['new-imm','edit-imm','del-imm','del-art','inv-ok','imp-go'].includes(a)&&!isAdm()) return toast('Action réservée aux administrateurs.','err');
+  if(a==='new-imm') return openImmo(null);
+  if(a==='edit-imm') return openImmo(id);
+  if(a==='fiche-imm') return openImmoFiche(id);
+  if(a==='del-imm'){
+    const im=D().immos.find(x=>x.id===id); if(!im) return;
+    if(!await confirmBox('Supprimer l’immobilisation', im.code+' · '+im.designation+' sera supprimée définitivement. Pour une cession ou une mise au rebut, préférez l’état « Hors service ».','Supprimer',true)) return;
+    try{ await deleteImmo(id); toast('Immobilisation supprimée.'); }catch(err){ toast('Suppression impossible : '+(err.message||err.code),'err'); } return render();
+  }
+  if(a==='fcat'){ S.f.cat=t.dataset.k; return render(); }
+  if(a==='falert'){ S.f.alert=!S.f.alert; return render(); }
+  if(a==='jtype'){ S.j.type=t.dataset.k; return render(); }
+  if(a==='icat'){ S.inv.cat=t.dataset.k; return render(); }
+  if(a==='inv-clear'){ S.inv.counts={}; return render(); }
+  if(a==='inv-ok') return validateInv();
+  if(a==='imp-go') return runImport();
+  if(a==='tpl') return doTemplate();
+});
+document.addEventListener('submit', e=>{ if(e.target.id==='auth-form'){ e.preventDefault(); doAuth(); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'&&$('#modal-root').innerHTML) closeModal();
+  if((e.key==='Enter'||e.key===' ')&&e.target.id==='drop'){ e.preventDefault(); $('#imp-file').click(); } });
+document.addEventListener('input', e=>{
+  const t=e.target;
+  if(t.id==='f-q'){ S.f.q=t.value; render(); }
+  else if(t.id==='j-q'){ S.j.q=t.value; render(); }
+  else if(t.dataset.inv){ S.inv.counts[t.dataset.inv]=t.value; clearTimeout(t._tm); t._tm=setTimeout(render,350); }
+  else if(t.id==='inv-piece'){ S.inv.piece=t.value; }
+  else if(t.dataset.tl!==undefined&&t.tagName==='INPUT'){ TRF.lines[+t.dataset.tl][t.dataset.f]=t.value; clearTimeout(window._trT); window._trT=setTimeout(renderTrf,300); }
+  else if(t.id==='t-qin'||t.id==='t-frais'||t.id==='t-of'){ TRF[{'t-qin':'qin','t-frais':'frais','t-of':'of'}[t.id]]=t.value; if(t.id!=='t-of'){ clearTimeout(window._trT); window._trT=setTimeout(renderTrf,300);} }
+});
+document.addEventListener('change', e=>{
+  const t=e.target;
+  if(t.id==='inv-date'){ S.inv.date=t.value||todayISO(); }
+  else if(t.dataset.tl!==undefined&&t.tagName==='SELECT'){ TRF.lines[+t.dataset.tl].aid=t.value; TRF.err=''; renderTrf(); }
+  else if(t.id==='t-in'){ TRF.inId=t.value; TRF.err=''; renderTrf(); }
+  else if(t.id==='t-date'){ TRF.date=t.value; }
+  else if(t.id==='imp-target'){ const was=impKind(); IMP.target=t.value; if(impKind()!==was&&IMP.hdr.length) autoMap(); render(); }
+  else if(t.id==='imp-sheet'){ IMP.sheet=t.value; readSheet(); }
+  else if(t.id==='imp-dup'){ IMP.dup=t.value; render(); }
+  else if(t.dataset.map){ const v=t.value; if(v==='') delete IMP.map[t.dataset.map]; else { const n=+v; Object.keys(IMP.map).forEach(k=>{ if(IMP.map[k]===n&&k!==t.dataset.map) delete IMP.map[k]; }); IMP.map[t.dataset.map]=n; } render(); }
+  else if(t.id==='imp-file'){ loadFile(t.files[0]); t.value=''; }
+  else if(t.dataset.role){ const id=t.dataset.role, r=t.value; q(SB.from('profils').update({role:r}).eq('id',id).select('id')).then(x=>{ if(!x.length) throw new Error('Modification refusée.'); toast('Profil mis à jour.'); return openUsers(); }).catch(e=>{ toast(e.message,'err'); openUsers(); }); }
+});
+$('#page').addEventListener('click', e=>{ if(e.target.closest('#drop')) $('#imp-file').click(); });
+$('#page').addEventListener('dragover', e=>{ const d=e.target.closest('#drop'); if(d){ e.preventDefault(); d.classList.add('over'); } });
+$('#page').addEventListener('dragleave', e=>{ const d=e.target.closest('#drop'); if(d) d.classList.remove('over'); });
+$('#page').addEventListener('drop', e=>{ const d=e.target.closest('#drop'); if(d){ e.preventDefault(); d.classList.remove('over'); loadFile(e.dataTransfer.files[0]); } });
+$('#tabs').addEventListener('click', e=>{ const b=e.target.closest('button[data-p]'); if(!b) return; S.page=b.dataset.p; try{localStorage.setItem('gs-page',S.page)}catch(_){} render(); window.scrollTo(0,0); });
+$('#btn-export').addEventListener('click', doExport);
+$('#btn-acc').addEventListener('click', openUsers);
+$('#btn-out').addEventListener('click', logout);
+$('#banner-b').addEventListener('click', ()=>{ S.demo=null; render(); });
+
+/* ───────────── Démarrage ───────────── */
+async function boot(){
+  try{ const p=localStorage.getItem('gs-page'); if(p) S.page=p; }catch(_){}
+  if(!CFG.url||!CFG.cle||!window.supabase){ S.mode='setup'; return render(); }
+  SB=window.supabase.createClient(CFG.url, CFG.cle);
+  S.mode='auth'; render();
+  try{ const {data}=await SB.auth.getSession(); if(data.session) await startSession(data.session); }catch(e){ toast(sbErr(e),'err'); }
+  SB.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_OUT'&&S.mode!=='auth'){ S.mode='auth'; S.data=EMPTY(); render(); } });
+  window.addEventListener('focus', ()=>{ if(S.mode==='db') loadAll().catch(()=>{}); });
+}
+boot();
+</script>
+</body>
+</html>
